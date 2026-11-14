@@ -218,6 +218,7 @@ public class ConversationStateMachine : IConversationStateMachine
         var order = new Order
         {
             Id = Guid.NewGuid(),
+            CompanyId = ApplicationDbContext.DefaultCompanyId,
             CustomerName = conv.CustomerName,
             CustomerPhone = NormalizePhoneForDb(conv.PhoneNumber),
             CustomerAddress = conv.Address,

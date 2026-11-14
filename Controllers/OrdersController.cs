@@ -5,11 +5,12 @@ using HaliYikamaAPI.Models;
 using HaliYikamaAPI.Models.Enums;
 using HaliYikamaAPI.DTOs;
 using HaliYikamaAPI.Services.WhatsApp;
+using HaliYikamaAPI.Services.Auth;
 
 namespace HaliYikamaAPI.Controllers;
 
 /// <summary>
-/// Halı/Koltuk yıkama siparişleri CRUD API kontrolcüsü.
+/// Halı/Koltuk yıkama siparişleri CRUD API kontrolcüsü. Çoklu firma (multi-tenant) ve sürücü desteğine sahiptir.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -17,15 +18,18 @@ namespace HaliYikamaAPI.Controllers;
 public class OrdersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly ICurrentTenantService _tenantService;
     private readonly IWhatsAppSender _whatsAppSender;
     private readonly ILogger<OrdersController> _logger;
 
     public OrdersController(
         ApplicationDbContext context,
+        ICurrentTenantService tenantService,
         IWhatsAppSender whatsAppSender,
         ILogger<OrdersController> logger)
     {
         _context = context;
+        _tenantService = tenantService;
         _whatsAppSender = whatsAppSender;
         _logger = logger;
     }
@@ -35,9 +39,11 @@ public class OrdersController : ControllerBase
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Tüm siparişleri listeler. Opsiyonel olarak duruma ve sayfalama parametrelerine göre filtreleme yapılabilir.
+    /// Firmanın siparişlerini listeler. Durum, sürücü ve sayfalama parametrelerine göre filtrelenebilir.
     /// </summary>
     /// <param name="status">Sipariş durumu filtresi (opsiyonel)</param>
+    /// <param name="driverId">Belirli bir sürücüye atanmış siparişler (opsiyonel)</param>
+    /// <param name="unassignedOnly">Sadece henüz sürücü atanmamış siparişleri getir</param>
     /// <param name="page">Sayfa numarası (1'den başlar, opsiyonel)</param>
     /// <param name="pageSize">Sayfa başına kayıt sayısı (opsiyonel)</param>
     /// <returns>Sipariş listesi</returns>
@@ -45,12 +51,43 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(typeof(IEnumerable<OrderResponseDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IEnumerable<OrderResponseDto>>> GetOrders(
         [FromQuery] OrderStatus? status = null,
+        [FromQuery] Guid? driverId = null,
+        [FromQuery] bool? unassignedOnly = null,
         [FromQuery] int? page = null,
         [FromQuery] int? pageSize = null)
     {
-        _logger.LogInformation("Siparişler listeleniyor. Filtre: {Status}", status?.ToString() ?? "Yok");
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Siparişler listeleniyor. Firma: {CompanyId}, Filtre: {Status}",
+            companyId, status?.ToString() ?? "Yok");
 
-        IQueryable<Order> query = _context.Orders.AsNoTracking();
+        IQueryable<Order> query = _context.Orders
+            .AsNoTracking()
+            .Where(o => o.CompanyId == companyId);
+
+        // Rol kontrolü: Eğer istek atanmış bir sürücüden geliyorsa
+        if (_tenantService.IsDriver && _tenantService.DriverId.HasValue)
+        {
+            if (unassignedOnly == true)
+            {
+                query = query.Where(o => o.DriverId == null);
+            }
+            else
+            {
+                query = query.Where(o => o.DriverId == _tenantService.DriverId.Value);
+            }
+        }
+        else
+        {
+            // Firma yöneticisi filtreleri
+            if (driverId.HasValue)
+            {
+                query = query.Where(o => o.DriverId == driverId.Value);
+            }
+            else if (unassignedOnly == true)
+            {
+                query = query.Where(o => o.DriverId == null);
+            }
+        }
 
         if (status.HasValue)
         {
@@ -65,7 +102,24 @@ public class OrdersController : ControllerBase
         }
 
         var orders = await query
-            .Select(o => MapToResponseDto(o))
+            .Select(o => new OrderResponseDto
+            {
+                Id = o.Id,
+                CompanyId = o.CompanyId,
+                DriverId = o.DriverId,
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
+                CustomerName = o.CustomerName,
+                CustomerPhone = o.CustomerPhone,
+                CustomerAddress = o.CustomerAddress,
+                ServiceType = o.ServiceType,
+                CarpetCount = o.CarpetCount,
+                ReceiptNumber = o.ReceiptNumber,
+                TotalPrice = o.TotalPrice,
+                RequiresPOS = o.RequiresPOS,
+                Status = o.Status,
+                CreatedAt = o.CreatedAt,
+                UpdatedAt = o.UpdatedAt
+            })
             .ToListAsync();
 
         return Ok(orders);
@@ -85,16 +139,24 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrderResponseDto>> GetOrder(Guid id)
     {
-        _logger.LogInformation("Sipariş getiriliyor: {OrderId}", id);
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Sipariş getiriliyor: {OrderId}, Firma: {CompanyId}", id, companyId);
 
         var order = await _context.Orders
             .AsNoTracking()
-            .FirstOrDefaultAsync(o => o.Id == id);
+            .Include(o => o.Driver)
+            .FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId);
 
         if (order is null)
         {
             _logger.LogWarning("Sipariş bulunamadı: {OrderId}", id);
             return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
+        }
+
+        // Eğer sürücü ise ve sipariş kendisine ait değilse (ve atanmamış siparişleri incelemiyorsa) kontrol
+        if (_tenantService.IsDriver && order.DriverId != _tenantService.DriverId && order.DriverId != null)
+        {
+            return Forbid();
         }
 
         return Ok(MapToResponseDto(order));
@@ -114,12 +176,25 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<OrderResponseDto>> CreateOrder([FromBody] CreateOrderDto dto)
     {
-        _logger.LogInformation("Yeni sipariş oluşturuluyor: {Phone}, {ServiceType}",
-            dto.CustomerPhone, dto.ServiceType);
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Yeni sipariş oluşturuluyor: Firma {CompanyId}, {Phone}, {ServiceType}",
+            companyId, dto.CustomerPhone, dto.ServiceType);
+
+        if (dto.DriverId.HasValue)
+        {
+            var driverExists = await _context.Drivers
+                .AnyAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId);
+            if (!driverExists)
+            {
+                return BadRequest(new { message = "Seçilen sürücü bu firmaya ait değil veya bulunamadı." });
+            }
+        }
 
         var order = new Order
         {
             Id = Guid.NewGuid(),
+            CompanyId = companyId,
+            DriverId = dto.DriverId,
             CustomerName = dto.CustomerName,
             CustomerPhone = dto.CustomerPhone,
             CustomerAddress = dto.CustomerAddress,
@@ -135,7 +210,12 @@ public class OrdersController : ControllerBase
         _context.Orders.Add(order);
         await _context.SaveChangesAsync();
 
-        _logger.LogInformation("Sipariş oluşturuldu: {OrderId}", order.Id);
+        if (order.DriverId.HasValue)
+        {
+            await _context.Entry(order).Reference(o => o.Driver).LoadAsync();
+        }
+
+        _logger.LogInformation("Sipariş oluşturuldu: {OrderId} (Firma: {CompanyId})", order.Id, companyId);
 
         var responseDto = MapToResponseDto(order);
 
@@ -161,14 +241,27 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<OrderResponseDto>> UpdateOrder(Guid id, [FromBody] UpdateOrderDto dto)
     {
-        _logger.LogInformation("Sipariş güncelleniyor: {OrderId}", id);
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Sipariş güncelleniyor: {OrderId} (Firma: {CompanyId})", id, companyId);
 
-        var order = await _context.Orders.FindAsync(id);
+        var order = await _context.Orders
+            .Include(o => o.Driver)
+            .FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId);
 
         if (order is null)
         {
             _logger.LogWarning("Güncellenecek sipariş bulunamadı: {OrderId}", id);
             return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
+        }
+
+        if (dto.DriverId.HasValue && dto.DriverId != order.DriverId)
+        {
+            var driverExists = await _context.Drivers
+                .AnyAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId);
+            if (!driverExists)
+            {
+                return BadRequest(new { message = "Seçilen sürücü bu firmaya ait değil veya bulunamadı." });
+            }
         }
 
         order.CustomerName = dto.CustomerName;
@@ -180,9 +273,15 @@ public class OrdersController : ControllerBase
         order.TotalPrice = dto.TotalPrice;
         order.RequiresPOS = dto.RequiresPOS;
         order.Status = dto.Status;
+        order.DriverId = dto.DriverId;
         order.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
+
+        if (order.DriverId.HasValue)
+        {
+            await _context.Entry(order).Reference(o => o.Driver).LoadAsync();
+        }
 
         _logger.LogInformation("Sipariş güncellendi: {OrderId}", order.Id);
 
@@ -194,7 +293,7 @@ public class OrdersController : ControllerBase
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Siparişin durumunu günceller.
+    /// Siparişin durumunu günceller. Sürücüler ve firma yöneticileri kullanabilir.
     /// </summary>
     /// <param name="id">Sipariş ID'si</param>
     /// <param name="dto">Yeni durum</param>
@@ -202,18 +301,28 @@ public class OrdersController : ControllerBase
     [HttpPatch("{id:guid}/status")]
     [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<OrderResponseDto>> UpdateOrderStatus(
         Guid id, [FromBody] UpdateOrderStatusDto dto)
     {
+        var companyId = _tenantService.CompanyId;
         _logger.LogInformation("Sipariş durumu güncelleniyor: {OrderId} -> {Status}", id, dto.Status);
 
-        var order = await _context.Orders.FindAsync(id);
+        var order = await _context.Orders
+            .Include(o => o.Driver)
+            .FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId);
 
         if (order is null)
         {
             _logger.LogWarning("Durumu güncellenecek sipariş bulunamadı: {OrderId}", id);
             return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
+        }
+
+        // Sürücü rolü kontrolü: Sürücü yalnızca kendisine atanan siparişin durumunu güncelleyebilir
+        if (_tenantService.IsDriver && order.DriverId != _tenantService.DriverId)
+        {
+            return Forbid();
         }
 
         order.Status = dto.Status;
@@ -229,21 +338,86 @@ public class OrdersController : ControllerBase
     }
 
     // ──────────────────────────────────────────────
+    //  PATCH: api/orders/{id}/assign-driver
+    // ──────────────────────────────────────────────
+
+    /// <summary>
+    /// Siparişe sürücü atar veya atamayı kaldırır (DriverId null gönderilirse kaldırılır).
+    /// </summary>
+    /// <param name="id">Sipariş ID'si</param>
+    /// <param name="dto">Sürücü atama verisi</param>
+    /// <returns>Güncellenmiş sipariş</returns>
+    [HttpPatch("{id:guid}/assign-driver")]
+    [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<OrderResponseDto>> AssignDriver(
+        Guid id, [FromBody] AssignDriverDto dto)
+    {
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Siparişe sürücü atanıyor: {OrderId} -> Sürücü: {DriverId}", id, dto.DriverId);
+
+        var order = await _context.Orders
+            .Include(o => o.Driver)
+            .FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId);
+
+        if (order is null)
+        {
+            return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
+        }
+
+        if (dto.DriverId.HasValue)
+        {
+            var driver = await _context.Drivers
+                .FirstOrDefaultAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId);
+
+            if (driver is null)
+            {
+                return BadRequest(new { message = "Belirtilen sürücü bulunamadı veya bu firmaya ait değil." });
+            }
+
+            order.DriverId = driver.Id;
+            order.Driver = driver;
+        }
+        else
+        {
+            order.DriverId = null;
+            order.Driver = null;
+        }
+
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        _logger.LogInformation("Sürücü ataması başarılı: {OrderId} -> {DriverName}",
+            order.Id, order.Driver?.FullName ?? "Atama Kaldırıldı");
+
+        return Ok(MapToResponseDto(order));
+    }
+
+    // ──────────────────────────────────────────────
     //  DELETE: api/orders/{id}
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Belirtilen siparişi siler.
+    /// Belirtilen siparişi siler. Sürücüler sipariş silemez, sadece firma yöneticileri silebilir.
     /// </summary>
     /// <param name="id">Sipariş ID'si</param>
     [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteOrder(Guid id)
     {
-        _logger.LogInformation("Sipariş siliniyor: {OrderId}", id);
+        if (_tenantService.IsDriver)
+        {
+            return Forbid();
+        }
 
-        var order = await _context.Orders.FindAsync(id);
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Sipariş siliniyor: {OrderId} (Firma: {CompanyId})", id, companyId);
+
+        var order = await _context.Orders
+            .FirstOrDefaultAsync(o => o.Id == id && o.CompanyId == companyId);
 
         if (order is null)
         {
@@ -264,7 +438,7 @@ public class OrdersController : ControllerBase
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Telefon numarasına veya müşteri adına göre siparişleri arar.
+    /// Telefon numarasına veya müşteri adına göre firmanın siparişlerini arar.
     /// </summary>
     /// <param name="phone">Aranacak telefon numarası veya isim (kısmi eşleşme)</param>
     /// <param name="query">Genel arama sorgusu (telefon veya isim)</param>
@@ -282,14 +456,34 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = "Arama terimi boş olamaz." });
         }
 
-        _logger.LogInformation("Sipariş arama: {SearchTerm}", searchTerm);
+        var companyId = _tenantService.CompanyId;
+        _logger.LogInformation("Sipariş arama (Firma: {CompanyId}): {SearchTerm}", companyId, searchTerm);
 
         var orders = await _context.Orders
             .AsNoTracking()
-            .Where(o => o.CustomerPhone.Contains(searchTerm) || (o.CustomerName != null && o.CustomerName.Contains(searchTerm)))
+            .Include(o => o.Driver)
+            .Where(o => o.CompanyId == companyId &&
+                        (o.CustomerPhone.Contains(searchTerm) || (o.CustomerName != null && o.CustomerName.Contains(searchTerm))))
             .OrderByDescending(o => o.CreatedAt)
             .Take(50)
-            .Select(o => MapToResponseDto(o))
+            .Select(o => new OrderResponseDto
+            {
+                Id = o.Id,
+                CompanyId = o.CompanyId,
+                DriverId = o.DriverId,
+                DriverName = o.Driver != null ? o.Driver.FullName : null,
+                CustomerName = o.CustomerName,
+                CustomerPhone = o.CustomerPhone,
+                CustomerAddress = o.CustomerAddress,
+                ServiceType = o.ServiceType,
+                CarpetCount = o.CarpetCount,
+                ReceiptNumber = o.ReceiptNumber,
+                TotalPrice = o.TotalPrice,
+                RequiresPOS = o.RequiresPOS,
+                Status = o.Status,
+                CreatedAt = o.CreatedAt,
+                UpdatedAt = o.UpdatedAt
+            })
             .ToListAsync();
 
         return Ok(orders);
@@ -302,6 +496,9 @@ public class OrdersController : ControllerBase
     private static OrderResponseDto MapToResponseDto(Order order) => new()
     {
         Id = order.Id,
+        CompanyId = order.CompanyId,
+        DriverId = order.DriverId,
+        DriverName = order.Driver?.FullName,
         CustomerName = order.CustomerName,
         CustomerPhone = order.CustomerPhone,
         CustomerAddress = order.CustomerAddress,

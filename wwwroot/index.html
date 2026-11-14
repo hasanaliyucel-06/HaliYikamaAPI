@@ -408,6 +408,58 @@
             50% { opacity: .4; transform: scale(.7); }
         }
 
+        .company-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(139, 92, 246, 0.08);
+            border: 1px solid rgba(139, 92, 246, 0.25);
+            padding: 5px 12px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #7c3aed;
+        }
+
+        .badge-driver {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+            background: #eff6ff;
+            color: #2563eb;
+            border: 1px solid #bfdbfe;
+        }
+
+        .badge-driver.empty {
+            background: #f8fafc;
+            color: #94a3b8;
+            border: 1px dashed #cbd5e1;
+        }
+
+        .driver-code-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f1f5f9;
+            border: 1px solid #cbd5e1;
+            padding: 3px 8px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-weight: 700;
+            color: #0284c7;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .driver-code-pill:hover {
+            background: #e2e8f0;
+            color: #0369a1;
+        }
+
         .card-phone {
             font-weight: 700;
             font-size: 1rem;
@@ -729,22 +781,36 @@
 
     <!-- ═══════ TOP NAVBAR ═══════ -->
     <nav class="top-navbar">
-        <a href="/" class="brand">
-            <div class="brand-icon"><i class="bi bi-water"></i></div>
-            <span>Halı Yıkama</span>
-        </a>
+        <div style="display:flex;align-items:center;gap:16px;">
+            <a href="/" class="brand">
+                <div class="brand-icon"><i class="bi bi-water"></i></div>
+                <span>Halı Yıkama</span>
+            </a>
+            <span class="company-pill">
+                <i class="bi bi-building"></i>
+                <span id="companyNameDisplay">Firma Yükleniyor...</span>
+            </span>
+        </div>
         <div class="navbar-actions">
             <button class="btn-navbar" onclick="loadOrders()" title="Yenile">
                 <i class="bi bi-arrow-clockwise"></i>
                 Yenile
             </button>
-            <a href="/swagger" target="_blank" class="btn-navbar">
-                <i class="bi bi-code-slash"></i>
-                API Docs
+            <button class="btn-navbar" data-bs-toggle="modal" data-bs-target="#driversModal" title="Sürücü Yönetimi">
+                <i class="bi bi-people-fill"></i>
+                Sürücüler
+            </button>
+            <a href="/driver.html" target="_blank" class="btn-navbar" title="Sürücü Ekranını Yeni Sekmede Aç">
+                <i class="bi bi-truck"></i>
+                Sürücü Ekranı
             </a>
             <button class="btn-navbar btn-navbar-primary" data-bs-toggle="modal" data-bs-target="#newOrderModal">
                 <i class="bi bi-plus-lg"></i>
                 Yeni Sipariş
+            </button>
+            <button class="btn-navbar" onclick="logout()" title="Çıkış Yap" style="color:#ef4444;">
+                <i class="bi bi-box-arrow-right"></i>
+                Çıkış
             </button>
         </div>
     </nav>
@@ -918,6 +984,16 @@
                         </div>
                     </div>
 
+                    <!-- Driver Assignment -->
+                    <div class="mb-3">
+                        <label for="editDriverId" class="form-label">
+                            <i class="bi bi-truck me-1"></i>Atanan Sürücü
+                        </label>
+                        <select class="form-select" id="editDriverId">
+                            <option value="">Atanmadı (Boşta)</option>
+                        </select>
+                    </div>
+
                     <!-- Status -->
                     <div class="mb-0">
                         <label for="editStatus" class="form-label">
@@ -991,6 +1067,14 @@
                             <input type="number" min="0" class="form-control" id="newCarpetCount" placeholder="0">
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label for="newDriverId" class="form-label">
+                            <i class="bi bi-truck me-1"></i>Sürücü Ata (Opsiyonel)
+                        </label>
+                        <select class="form-select" id="newDriverId">
+                            <option value="">Atanmadı (Boşta)</option>
+                        </select>
+                    </div>
                     <div class="mb-0 form-check form-switch">
                         <input class="form-check-input" type="checkbox" id="newRequiresPOS" style="width:2.5em;height:1.25em;">
                         <label class="form-check-label fw-semibold" for="newRequiresPOS" style="font-size:.88rem;">
@@ -1003,6 +1087,67 @@
                     <button type="button" class="btn btn-save" onclick="createOrder()" id="btnCreate">
                         <i class="bi bi-plus-circle me-1"></i>Oluştur
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ DRIVERS MANAGEMENT MODAL ═══════ -->
+    <div class="modal fade" id="driversModal" tabindex="-1" aria-labelledby="driversModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="driversModalLabel">
+                        <span class="title-icon" style="background:linear-gradient(135deg,#3b82f6,#8b5cf6);"><i class="bi bi-people-fill"></i></span>
+                        Sürücü Yönetimi
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <!-- Yeni Sürücü Ekle Formu -->
+                    <div class="card p-3 mb-4" style="background:var(--clr-bg);border:1px solid var(--clr-border);border-radius:var(--radius-md);">
+                        <h6 class="fw-bold mb-3" style="color:var(--clr-text-primary);">
+                            <i class="bi bi-person-plus-fill me-1 text-primary"></i> Yeni Sürücü Tanımla
+                        </h6>
+                        <form id="newDriverForm" onsubmit="handleCreateDriver(event)" class="row g-2">
+                            <div class="col-md-4">
+                                <input type="text" id="driverFullName" class="form-control" placeholder="Ad Soyad" required>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="tel" id="driverPhone" class="form-control" placeholder="Telefon (05XX...)" required>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" id="driverPlate" class="form-control" placeholder="Plaka (örn: 34 ABC 123)">
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-save w-100" id="btnSaveDriver">
+                                    <i class="bi bi-plus-lg me-1"></i> Ekle
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Sürücüler Tablosu -->
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Sürücü</th>
+                                    <th>Telefon</th>
+                                    <th>Plaka</th>
+                                    <th>Hızlı Erişim Kodu</th>
+                                    <th>Aktif Görev</th>
+                                    <th>İşlem</th>
+                                </tr>
+                            </thead>
+                            <tbody id="driversTableBody">
+                                <tr><td colspan="6" class="text-center text-muted py-3">Yükleniyor...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">Kapat</button>
                 </div>
             </div>
         </div>
@@ -1023,13 +1168,39 @@
 
     <script>
         // ═══════════════════════════════════════════════
+        //  Auth & Tenant Guard
+        // ═══════════════════════════════════════════════
+
+        const token = localStorage.getItem('hali_token');
+        const currentUser = JSON.parse(localStorage.getItem('hali_user') || 'null');
+
+        if (!token || !currentUser || currentUser.role !== 'CompanyAdmin') {
+            window.location.href = '/login.html';
+        }
+
+        function logout() {
+            localStorage.removeItem('hali_token');
+            localStorage.removeItem('hali_user');
+            window.location.href = '/login.html';
+        }
+
+        function getAuthHeaders() {
+            return {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+        }
+
+        // ═══════════════════════════════════════════════
         //  Constants & State
         // ═══════════════════════════════════════════════
 
         const API_BASE = '/api/orders';
         let allOrders = [];
+        let allDrivers = [];
         let editModalInstance = null;
         let newOrderModalInstance = null;
+        let driversModalInstance = null;
 
         const STATUS_LABELS = {
             YeniTalep: 'Yeni Talep',
@@ -1051,7 +1222,11 @@
         // ═══════════════════════════════════════════════
 
         async function fetchOrders() {
-            const response = await fetch(API_BASE);
+            const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+            if (response.status === 401) {
+                logout();
+                return [];
+            }
             if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
             return await response.json();
         }
@@ -1059,9 +1234,13 @@
         async function updateOrder(id, data) {
             const response = await fetch(`${API_BASE}/${id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(data)
             });
+            if (response.status === 401) {
+                logout();
+                throw new Error('Oturum süresi doldu.');
+            }
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.message || `Güncelleme hatası: ${response.status}`);
@@ -1072,14 +1251,143 @@
         async function createOrderAPI(data) {
             const response = await fetch(API_BASE, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify(data)
             });
+            if (response.status === 401) {
+                logout();
+                throw new Error('Oturum süresi doldu.');
+            }
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.message || `Oluşturma hatası: ${response.status}`);
             }
             return await response.json();
+        }
+
+        // ═══════════════════════════════════════════════
+        //  Drivers Management
+        // ═══════════════════════════════════════════════
+
+        async function loadDrivers() {
+            try {
+                const res = await fetch('/api/drivers', { headers: getAuthHeaders() });
+                if (res.status === 401) { logout(); return; }
+                if (!res.ok) throw new Error('Sürücüler alınamadı.');
+                allDrivers = await res.json();
+                updateDriverSelects();
+                renderDriversTable();
+            } catch (e) {
+                console.error('Sürücü yükleme hatası:', e);
+            }
+        }
+
+        function updateDriverSelects() {
+            const editSelect = document.getElementById('editDriverId');
+            const newSelect = document.getElementById('newDriverId');
+
+            const optionsHtml = '<option value="">Atanmadı (Boşta)</option>' +
+                allDrivers.filter(d => d.isActive).map(d => `<option value="${d.id}">${escapeHtml(d.fullName)} (${d.accessCode})</option>`).join('');
+
+            if (editSelect) editSelect.innerHTML = optionsHtml;
+            if (newSelect) newSelect.innerHTML = optionsHtml;
+        }
+
+        function renderDriversTable() {
+            const tbody = document.getElementById('driversTableBody');
+            if (!tbody) return;
+
+            if (allDrivers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">Henüz kayıtlı sürücü yok.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = allDrivers.map(d => `
+                <tr>
+                    <td>
+                        <strong>${escapeHtml(d.fullName)}</strong>
+                        ${d.isActive ? '<span class="badge bg-success-subtle text-success ms-1">Aktif</span>' : '<span class="badge bg-danger-subtle text-danger ms-1">Pasif</span>'}
+                    </td>
+                    <td><a href="tel:${d.phone}" class="text-decoration-none">${d.phone}</a></td>
+                    <td>${d.vehiclePlate ? escapeHtml(d.vehiclePlate) : '<span class="text-muted">–</span>'}</td>
+                    <td>
+                        <span class="driver-code-pill" onclick="copyToClipboard('${d.accessCode}')" title="Kopyalamak için tıkla">
+                            ${d.accessCode} <i class="bi bi-clipboard"></i>
+                        </span>
+                    </td>
+                    <td><span class="badge bg-primary-subtle text-primary">${d.activeOrderCount} sipariş</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleDriverActive('${d.id}', ${!d.isActive})">
+                            ${d.isActive ? 'Pasife Al' : 'Aktif Et'}
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function handleCreateDriver(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveDriver');
+            const fullName = document.getElementById('driverFullName').value.trim();
+            const phone = document.getElementById('driverPhone').value.trim();
+            const vehiclePlate = document.getElementById('driverPlate').value.trim() || null;
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const res = await fetch('/api/drivers', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ fullName, phone, vehiclePlate })
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => ({}));
+                    throw new Error(err.message || 'Sürücü eklenemedi');
+                }
+
+                showToast('Yeni sürücü başarıyla eklendi!', 'success');
+                document.getElementById('newDriverForm').reset();
+                await loadDrivers();
+            } catch (err) {
+                showToast(`Hata: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i> Ekle';
+            }
+        }
+
+        async function toggleDriverActive(driverId, isActive) {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            try {
+                const res = await fetch(`/api/drivers/${driverId}`, {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        fullName: driver.fullName,
+                        phone: driver.phone,
+                        vehiclePlate: driver.vehiclePlate,
+                        isActive: isActive
+                    })
+                });
+
+                if (!res.ok) throw new Error('Durum güncellenemedi');
+                showToast(`Sürücü durumu güncellendi.`, 'success');
+                await loadDrivers();
+            } catch (err) {
+                showToast(`Hata: ${err.message}`, 'error');
+            }
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`Erişim kodu kopyalandı: ${text}`, 'success');
+            }).catch(() => {
+                showToast(`Kod: ${text}`, 'success');
+            });
         }
 
         // ═══════════════════════════════════════════════
@@ -1099,6 +1407,10 @@
                 hour: '2-digit', minute: '2-digit'
             });
 
+            const driverBadge = order.driverName
+                ? `<span class="badge-driver"><i class="bi bi-truck"></i> ${escapeHtml(order.driverName)}</span>`
+                : `<span class="badge-driver empty"><i class="bi bi-dash-circle"></i> Sürücü Yok</span>`;
+
             return `
                 <div class="order-card service-${isKoltuk ? 'koltuk' : 'hali'}" style="animation-delay:${index * 60}ms" data-id="${order.id}">
                     <div class="card-top-row">
@@ -1111,6 +1423,7 @@
                                 <span class="pulse-dot"></span>
                                 ${STATUS_LABELS[order.status] || order.status}
                             </span>
+                            ${driverBadge}
                             ${order.requiresPOS ? '<span class="badge-pos"><i class="bi bi-credit-card-2-front"></i> POS</span>' : ''}
                         </div>
                         <button class="btn-edit" onclick='openEditModal(${JSON.stringify(order).replace(/'/g, "&#39;")})'>
@@ -1231,6 +1544,7 @@
 
             document.getElementById('editReceiptNumber').value = order.receiptNumber || '';
             document.getElementById('editTotalPrice').value = order.totalPrice ?? '';
+            document.getElementById('editDriverId').value = order.driverId || '';
             document.getElementById('editStatus').value = order.status;
 
             // Store the full order for PUT
@@ -1248,6 +1562,8 @@
             const receiptNumber = document.getElementById('editReceiptNumber').value.trim() || null;
             const totalPriceVal = document.getElementById('editTotalPrice').value;
             const totalPrice = totalPriceVal !== '' ? parseFloat(totalPriceVal) : null;
+            const driverIdVal = document.getElementById('editDriverId').value;
+            const driverId = driverIdVal !== '' ? driverIdVal : null;
             const status = document.getElementById('editStatus').value;
 
             const payload = {
@@ -1258,6 +1574,7 @@
                 carpetCount: original.carpetCount,
                 receiptNumber,
                 totalPrice,
+                driverId,
                 requiresPOS: original.requiresPOS,
                 status
             };
@@ -1270,6 +1587,7 @@
                 editModalInstance.hide();
                 showToast('Sipariş başarıyla güncellendi!', 'success');
                 await loadOrders();
+                await loadDrivers(); // Update driver order counts
             } catch (error) {
                 showToast(`Hata: ${error.message}`, 'error');
             } finally {
@@ -1290,6 +1608,8 @@
             const serviceType = document.getElementById('newServiceType').value;
             const carpetCountVal = document.getElementById('newCarpetCount').value;
             const carpetCount = carpetCountVal !== '' ? parseInt(carpetCountVal, 10) : null;
+            const driverIdVal = document.getElementById('newDriverId').value;
+            const driverId = driverIdVal !== '' ? driverIdVal : null;
             const requiresPOS = document.getElementById('newRequiresPOS').checked;
 
             if (!phone || !address) {
@@ -1305,6 +1625,7 @@
                 carpetCount,
                 receiptNumber: null,
                 totalPrice: null,
+                driverId,
                 requiresPOS
             };
 
@@ -1322,9 +1643,11 @@
                 document.getElementById('newAddress').value = '';
                 document.getElementById('newServiceType').value = 'Hali';
                 document.getElementById('newCarpetCount').value = '';
+                document.getElementById('newDriverId').value = '';
                 document.getElementById('newRequiresPOS').checked = false;
 
                 await loadOrders();
+                await loadDrivers();
             } catch (error) {
                 showToast(`Hata: ${error.message}`, 'error');
             } finally {
@@ -1353,6 +1676,7 @@
         // ═══════════════════════════════════════════════
 
         function escapeHtml(text) {
+            if (!text) return '';
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
@@ -1377,8 +1701,16 @@
         // ═══════════════════════════════════════════════
 
         document.addEventListener('DOMContentLoaded', () => {
+            if (currentUser && currentUser.companyName) {
+                const companyEl = document.getElementById('companyNameDisplay');
+                if (companyEl) companyEl.textContent = currentUser.companyName;
+            }
+
             editModalInstance = new bootstrap.Modal(document.getElementById('editModal'));
             newOrderModalInstance = new bootstrap.Modal(document.getElementById('newOrderModal'));
+            driversModalInstance = new bootstrap.Modal(document.getElementById('driversModal'));
+
+            loadDrivers();
             loadOrders();
 
             // Auto-refresh every 30 seconds

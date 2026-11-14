@@ -40,6 +40,9 @@ public class CreateOrderDto
 
     /// <summary>POS cihazı gerekli mi?</summary>
     public bool RequiresPOS { get; set; }
+
+    /// <summary>Siparişe atanan sürücü ID'si (opsiyonel)</summary>
+    public Guid? DriverId { get; set; }
 }
 
 /// <summary>
@@ -80,6 +83,9 @@ public class UpdateOrderDto
     /// <summary>POS cihazı gerekli mi?</summary>
     public bool RequiresPOS { get; set; }
 
+    /// <summary>Siparişe atanan sürücü ID'si (opsiyonel)</summary>
+    public Guid? DriverId { get; set; }
+
     /// <summary>Sipariş durumu</summary>
     [Required(ErrorMessage = "Sipariş durumu zorunludur.")]
     public OrderStatus Status { get; set; }
@@ -96,11 +102,22 @@ public class UpdateOrderStatusDto
 }
 
 /// <summary>
+/// Siparişe sürücü atama DTO'su.
+/// </summary>
+public class AssignDriverDto
+{
+    public Guid? DriverId { get; set; }
+}
+
+/// <summary>
 /// Sipariş yanıt DTO'su.
 /// </summary>
 public class OrderResponseDto
 {
     public Guid Id { get; set; }
+    public Guid CompanyId { get; set; }
+    public Guid? DriverId { get; set; }
+    public string? DriverName { get; set; }
     public string? CustomerName { get; set; }
     public string CustomerPhone { get; set; } = string.Empty;
     public string CustomerAddress { get; set; } = string.Empty;

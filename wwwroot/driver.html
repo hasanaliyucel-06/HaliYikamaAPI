@@ -721,13 +721,18 @@
             <div class="header-brand">
                 <div class="brand-logo"><i class="bi bi-truck"></i></div>
                 <div class="brand-text">
-                    <h1>Sürücü Paneli</h1>
-                    <span>Halı & Koltuk Yıkama</span>
+                    <h1 id="driverNameDisplay">Sürücü Paneli</h1>
+                    <span id="companyNameDisplay">Halı & Koltuk Yıkama</span>
                 </div>
             </div>
-            <button class="btn-refresh" onclick="refreshData()" id="btnRefresh" aria-label="Yenile">
-                <i class="bi bi-arrow-clockwise"></i>
-            </button>
+            <div style="display:flex;align-items:center;gap:8px;">
+                <button class="btn-refresh" onclick="refreshData()" id="btnRefresh" aria-label="Yenile" title="Yenile">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button class="btn-refresh" onclick="logoutDriver()" title="Çıkış Yap" style="color:var(--accent-red);">
+                    <i class="bi bi-box-arrow-right"></i>
+                </button>
+            </div>
         </div>
 
         <div class="tab-bar">
@@ -787,11 +792,36 @@
         let pendingAction = null; // { orderId, newStatus, cardEl }
 
         // ═══════════════════════════════════════════
+        //  Auth & State
+        // ═══════════════════════════════════════════
+
+        const token = localStorage.getItem('hali_token');
+        const currentUser = JSON.parse(localStorage.getItem('hali_user') || 'null');
+
+        if (!token || !currentUser) {
+            window.location.href = '/login.html?role=driver';
+        }
+
+        function logoutDriver() {
+            localStorage.removeItem('hali_token');
+            localStorage.removeItem('hali_user');
+            window.location.href = '/login.html?role=driver';
+        }
+
+        // ═══════════════════════════════════════════
         //  API
         // ═══════════════════════════════════════════
 
         async function fetchOrders() {
-            const res = await fetch(API);
+            const res = await fetch(API, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            if (res.status === 401) {
+                logoutDriver();
+                return [];
+            }
             if (!res.ok) throw new Error(`API ${res.status}`);
             return res.json();
         }
@@ -799,9 +829,16 @@
         async function patchStatus(id, status) {
             const res = await fetch(`${API}/${id}/status`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
                 body: JSON.stringify({ status })
             });
+            if (res.status === 401) {
+                logoutDriver();
+                throw new Error('Oturum süresi doldu.');
+            }
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.message || `Hata: ${res.status}`);
@@ -1104,6 +1141,10 @@
         // ═══════════════════════════════════════════
 
         document.addEventListener('DOMContentLoaded', () => {
+            if (currentUser) {
+                if (currentUser.name) document.getElementById('driverNameDisplay').textContent = currentUser.name;
+                if (currentUser.companyName) document.getElementById('companyNameDisplay').textContent = currentUser.companyName;
+            }
             loadData();
             // Auto-refresh every 45 seconds
             setInterval(loadData, 45000);

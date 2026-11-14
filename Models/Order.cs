@@ -12,6 +12,17 @@ public class Order
     [Key]
     public Guid Id { get; set; }
 
+    /// <summary>Siparişin ait olduğu firma ID'si</summary>
+    [Required]
+    public Guid CompanyId { get; set; }
+
+    public Company? Company { get; set; }
+
+    /// <summary>Siparişe atanan sürücü ID'si (opsiyonel)</summary>
+    public Guid? DriverId { get; set; }
+
+    public Driver? Driver { get; set; }
+
     /// <summary>Müşteri adı</summary>
     [StringLength(100)]
     public string? CustomerName { get; set; }
