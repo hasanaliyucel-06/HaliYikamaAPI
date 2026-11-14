@@ -1,0 +1,22 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.cache
+*.dll
+*.pdb
+*.exe
+
+## IDE
+.vs/
+.vscode/
+*.swp
+
+## User secrets (gizli bilgiler)
+appsettings.*.local.json
+appsettings.Development.json
+
+## OS
+Thumbs.db
+.DS_Store

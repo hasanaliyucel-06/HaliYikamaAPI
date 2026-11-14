@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f172a">
+    <title>Sürücü Paneli – Halı Yıkama</title>
+    <meta name="description" content="Halı Yıkama sürücü teslimat ve toplama paneli">
+
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts – Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        /* ─────────── Design Tokens ─────────── */
+        :root {
+            --font: 'Inter', system-ui, -apple-system, sans-serif;
+            --bg: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-koltuk: #172240;
+            --bg-input: #334155;
+            --text: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border: #334155;
+            --border-light: #1e293b;
+            --accent-blue: #3b82f6;
+            --accent-blue-glow: rgba(59,130,246,.25);
+            --accent-green: #22c55e;
+            --accent-green-glow: rgba(34,197,94,.25);
+            --accent-orange: #f59e0b;
+            --accent-orange-glow: rgba(245,158,11,.2);
+            --accent-purple: #a855f7;
+            --accent-purple-glow: rgba(168,85,247,.2);
+            --accent-red: #ef4444;
+            --accent-koltuk: #3b82f6;
+            --accent-koltuk-bg: rgba(59,130,246,.08);
+            --radius: 16px;
+            --radius-lg: 20px;
+            --radius-btn: 14px;
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+            --transition: 300ms cubic-bezier(.4,0,.2,1);
+            --spring: 400ms cubic-bezier(.34,1.56,.64,1);
+        }
+
+        /* ─────────── Reset ─────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        html {
+            -webkit-tap-highlight-color: transparent;
+            -webkit-text-size-adjust: 100%;
+        }
+
+        body {
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100dvh;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: calc(24px + var(--safe-bottom));
+        }
+
+        /* ─────────── Header ─────────── */
+        .app-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15,23,42,.85);
+            backdrop-filter: blur(20px) saturate(1.4);
+            -webkit-backdrop-filter: blur(20px) saturate(1.4);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 20px;
+            padding-top: calc(16px + env(safe-area-inset-top, 0px));
+        }
+
+        .header-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        .brand-text h1 {
+            font-size: 1.1rem;
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .brand-text span {
+            font-size: .75rem;
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .btn-refresh {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-refresh:active {
+            transform: scale(.9);
+            background: var(--bg-input);
+        }
+
+        .btn-refresh.spinning i {
+            animation: spin .6s ease-in-out;
+        }
+
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ─────────── Tab Bar ─────────── */
+        .tab-bar {
+            display: flex;
+            gap: 8px;
+            margin-top: 14px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 0;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: var(--font);
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tab-btn:active { transform: scale(.96); }
+
+        .tab-btn.active {
+            border-color: transparent;
+            color: #fff;
+        }
+
+        .tab-btn.active.tab-alinacak {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            box-shadow: 0 4px 20px var(--accent-purple-glow);
+        }
+
+        .tab-btn.active.tab-dagitimda {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            box-shadow: 0 4px 20px var(--accent-blue-glow);
+        }
+
+        .tab-badge {
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.2);
+            font-size: .7rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tab-btn:not(.active) .tab-badge {
+            background: var(--bg-input);
+            color: var(--text-muted);
+        }
+
+        /* ─────────── Cards List ─────────── */
+        .cards-list {
+            padding: 16px 16px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        /* ─────────── Driver Card ─────────── */
+        .driver-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .driver-card.is-koltuk {
+            background: var(--bg-card-koltuk);
+            border-color: rgba(59,130,246,.25);
+        }
+
+        .driver-card.is-koltuk::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(ellipse at top right, rgba(59,130,246,.08), transparent 70%);
+            pointer-events: none;
+        }
+
+        /* card exit animation */
+        .driver-card.card-exit {
+            animation: cardExit var(--spring) forwards;
+        }
+
+        @keyframes cardExit {
+            0% { opacity: 1; transform: translateX(0) scale(1); }
+            60% { opacity: .5; transform: translateX(60px) scale(.97); }
+            100% { opacity: 0; transform: translateX(120px) scale(.94); height: 0; padding: 0; margin: 0; border: 0; overflow: hidden; }
+        }
+
+        /* card enter animation */
+        .driver-card.card-enter {
+            animation: cardEnter var(--spring) forwards;
+        }
+
+        @keyframes cardEnter {
+            from { opacity: 0; transform: translateY(20px) scale(.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* ── Card Header ── */
+        .card-header-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .card-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: .7rem;
+            font-weight: 700;
+            letter-spacing: .03em;
+            text-transform: uppercase;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .badge-alinacak {
+            background: rgba(168,85,247,.15);
+            color: #c084fc;
+        }
+
+        .badge-dagitimda {
+            background: rgba(59,130,246,.15);
+            color: #60a5fa;
+        }
+
+        .badge-koltuk {
+            background: rgba(59,130,246,.2);
+            color: #60a5fa;
+            animation: koltukGlow 2s ease-in-out infinite;
+        }
+
+        @keyframes koltukGlow {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.2); }
+            50% { box-shadow: 0 0 0 5px rgba(59,130,246,.05); }
+        }
+
+        .badge-hali {
+            background: rgba(34,197,94,.15);
+            color: #4ade80;
+        }
+
+        .badge-pos {
+            background: rgba(245,158,11,.15);
+            color: #fbbf24;
+        }
+
+        .badge .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes dotPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .3; }
+        }
+
+        /* ── Phone ── */
+        .card-phone {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .card-phone-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            background: rgba(34,197,94,.12);
+            color: #4ade80;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .card-phone a {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--text);
+            text-decoration: none;
+            letter-spacing: .02em;
+        }
+
+        .card-phone a:active { opacity: .7; }
+
+        /* ── Address ── */
+        .card-address {
+            font-size: .9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 16px;
+            padding-left: 50px;
+        }
+
+        /* ── Price/POS Block ── */
+        .price-block {
+            background: rgba(255,255,255,.04);
+            border: 1px solid rgba(255,255,255,.06);
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .price-label {
+            font-size: .78rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-bottom: 2px;
+        }
+
+        .price-value {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #fff;
+        }
+
+        .price-value.empty {
+            font-size: .9rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .pos-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 14px;
+            border-radius: 10px;
+            font-size: .8rem;
+            font-weight: 600;
+        }
+
+        .pos-info.pos-needed {
+            background: rgba(245,158,11,.12);
+            color: #fbbf24;
+        }
+
+        .pos-info.pos-not-needed {
+            background: rgba(100,116,139,.12);
+            color: var(--text-muted);
+        }
+
+        .pos-info i { font-size: 1rem; }
+
+        /* ── Action Buttons ── */
+        .card-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-action {
+            width: 100%;
+            padding: 16px 20px;
+            border-radius: var(--radius-btn);
+            border: none;
+            font-family: var(--font);
+            font-size: .95rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+            position: relative;
+            overflow: hidden;
+            min-height: 56px;
+        }
+
+        .btn-action:active {
+            transform: scale(.97);
+        }
+
+        .btn-action:disabled {
+            opacity: .6;
+            pointer-events: none;
+        }
+
+        .btn-action i { font-size: 1.15rem; }
+
+        /* Maps button */
+        .btn-maps {
+            background: var(--bg-input);
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        .btn-maps:active {
+            background: rgba(59,130,246,.15);
+            border-color: rgba(59,130,246,.3);
+        }
+
+        /* Pickup button (Alinacak → Islemde) */
+        .btn-pickup {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            color: #fff;
+            box-shadow: 0 4px 20px var(--accent-purple-glow);
+        }
+
+        .btn-pickup:active {
+            box-shadow: 0 2px 10px var(--accent-purple-glow);
+        }
+
+        /* Complete button (Dagitimda → Tamamlandi) */
+        .btn-complete {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            color: #fff;
+            box-shadow: 0 4px 20px var(--accent-green-glow);
+        }
+
+        .btn-complete:active {
+            box-shadow: 0 2px 10px var(--accent-green-glow);
+        }
+
+        /* Button loading spinner */
+        .btn-spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255,255,255,.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .6s linear infinite;
+        }
+
+        /* ─────────── Empty State ─────────── */
+        .empty-state {
+            text-align: center;
+            padding: 60px 32px;
+            color: var(--text-muted);
+        }
+
+        .empty-icon {
+            width: 80px;
+            height: 80px;
+            border-radius: 20px;
+            background: rgba(100,116,139,.08);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            margin: 0 auto 16px;
+        }
+
+        .empty-state h3 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .empty-state p {
+            font-size: .85rem;
+        }
+
+        /* ─────────── Loading Skeletons ─────────── */
+        .skeleton {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            animation: skeletonPulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-line {
+            height: 16px;
+            border-radius: 6px;
+            background: var(--bg-input);
+            margin-bottom: 12px;
+        }
+
+        .skeleton-line.w50 { width: 50%; }
+        .skeleton-line.w70 { width: 70%; }
+        .skeleton-line.w90 { width: 90%; }
+        .skeleton-btn {
+            height: 56px;
+            border-radius: var(--radius-btn);
+            background: var(--bg-input);
+            margin-top: 8px;
+        }
+
+        @keyframes skeletonPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+
+        /* ─────────── Toast ─────────── */
+        .toast-msg {
+            position: fixed;
+            bottom: calc(24px + var(--safe-bottom));
+            left: 16px;
+            right: 16px;
+            padding: 16px 20px;
+            border-radius: 14px;
+            font-size: .9rem;
+            font-weight: 600;
+            font-family: var(--font);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 9999;
+            transform: translateY(120%);
+            transition: transform var(--spring);
+            box-shadow: 0 8px 32px rgba(0,0,0,.4);
+        }
+
+        .toast-msg.show { transform: translateY(0); }
+
+        .toast-msg.success {
+            background: linear-gradient(135deg, #166534, #14532d);
+            color: #4ade80;
+            border: 1px solid rgba(34,197,94,.2);
+        }
+
+        .toast-msg.error {
+            background: linear-gradient(135deg, #7f1d1d, #991b1b);
+            color: #fca5a5;
+            border: 1px solid rgba(239,68,68,.2);
+        }
+
+        .toast-msg i { font-size: 1.2rem; }
+
+        /* ─────────── Confirm Overlay ─────────── */
+        .confirm-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 9000;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity var(--transition);
+        }
+
+        .confirm-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .confirm-sheet {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 28px 20px;
+            padding-bottom: calc(28px + var(--safe-bottom));
+            width: 100%;
+            max-width: 500px;
+            transform: translateY(100%);
+            transition: transform var(--spring);
+        }
+
+        .confirm-overlay.show .confirm-sheet {
+            transform: translateY(0);
+        }
+
+        .confirm-handle {
+            width: 40px;
+            height: 4px;
+            border-radius: 4px;
+            background: var(--text-muted);
+            margin: 0 auto 20px;
+            opacity: .4;
+        }
+
+        .confirm-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 8px;
+        }
+
+        .confirm-desc {
+            font-size: .88rem;
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
+
+        .confirm-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .btn-confirm-yes {
+            width: 100%;
+            padding: 16px;
+            border-radius: var(--radius-btn);
+            border: none;
+            font-family: var(--font);
+            font-size: .95rem;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+            min-height: 56px;
+            transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-confirm-yes:active { transform: scale(.97); }
+
+        .btn-confirm-yes.purple {
+            background: linear-gradient(135deg, #a855f7, #7c3aed);
+            box-shadow: 0 4px 20px var(--accent-purple-glow);
+        }
+
+        .btn-confirm-yes.green {
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            box-shadow: 0 4px 20px var(--accent-green-glow);
+        }
+
+        .btn-confirm-cancel {
+            width: 100%;
+            padding: 16px;
+            border-radius: var(--radius-btn);
+            border: 1px solid var(--border);
+            background: transparent;
+            font-family: var(--font);
+            font-size: .95rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            cursor: pointer;
+            min-height: 56px;
+            transition: all var(--transition);
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-confirm-cancel:active {
+            background: var(--bg-input);
+            transform: scale(.97);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════ HEADER ═══════ -->
+    <header class="app-header">
+        <div class="header-top">
+            <div class="header-brand">
+                <div class="brand-logo"><i class="bi bi-truck"></i></div>
+                <div class="brand-text">
+                    <h1>Sürücü Paneli</h1>
+                    <span>Halı & Koltuk Yıkama</span>
+                </div>
+            </div>
+            <button class="btn-refresh" onclick="refreshData()" id="btnRefresh" aria-label="Yenile">
+                <i class="bi bi-arrow-clockwise"></i>
+            </button>
+        </div>
+
+        <div class="tab-bar">
+            <button class="tab-btn tab-alinacak active" onclick="switchTab('Alinacak')" id="tabAlinacak">
+                <i class="bi bi-box-arrow-in-down"></i>
+                Alınacak
+                <span class="tab-badge" id="badgeAlinacak">0</span>
+            </button>
+            <button class="tab-btn tab-dagitimda" onclick="switchTab('Dagitimda')" id="tabDagitimda">
+                <i class="bi bi-send-fill"></i>
+                Dağıtım
+                <span class="tab-badge" id="badgeDagitimda">0</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- ═══════ CARDS ═══════ -->
+    <main class="cards-list" id="cardsList">
+        <div class="skeleton">
+            <div class="skeleton-line w50"></div>
+            <div class="skeleton-line w90"></div>
+            <div class="skeleton-line w70"></div>
+            <div class="skeleton-btn"></div>
+        </div>
+        <div class="skeleton">
+            <div class="skeleton-line w70"></div>
+            <div class="skeleton-line w50"></div>
+            <div class="skeleton-line w90"></div>
+            <div class="skeleton-btn"></div>
+        </div>
+    </main>
+
+    <!-- ═══════ CONFIRM BOTTOM SHEET ═══════ -->
+    <div class="confirm-overlay" id="confirmOverlay" onclick="onOverlayClick(event)">
+        <div class="confirm-sheet">
+            <div class="confirm-handle"></div>
+            <div class="confirm-title" id="confirmTitle"></div>
+            <div class="confirm-desc" id="confirmDesc"></div>
+            <div class="confirm-buttons">
+                <button class="btn-confirm-yes" id="confirmYes" onclick="confirmAction()"></button>
+                <button class="btn-confirm-cancel" onclick="hideConfirm()">Vazgeç</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ TOAST ═══════ -->
+    <div class="toast-msg" id="toastEl"></div>
+
+    <script>
+        // ═══════════════════════════════════════════
+        //  State
+        // ═══════════════════════════════════════════
+
+        const API = '/api/orders';
+        let orders = [];
+        let activeTab = 'Alinacak';
+        let pendingAction = null; // { orderId, newStatus, cardEl }
+
+        // ═══════════════════════════════════════════
+        //  API
+        // ═══════════════════════════════════════════
+
+        async function fetchOrders() {
+            const res = await fetch(API);
+            if (!res.ok) throw new Error(`API ${res.status}`);
+            return res.json();
+        }
+
+        async function patchStatus(id, status) {
+            const res = await fetch(`${API}/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status })
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.message || `Hata: ${res.status}`);
+            }
+            return res.json();
+        }
+
+        // ═══════════════════════════════════════════
+        //  Rendering
+        // ═══════════════════════════════════════════
+
+        function getFilteredOrders() {
+            return orders.filter(o => o.status === activeTab);
+        }
+
+        function renderCard(order) {
+            const isKoltuk = order.serviceType === 'Koltuk';
+            const isAlinacak = order.status === 'Alinacak';
+            const isDagitimda = order.status === 'Dagitimda';
+            const showPriceBlock = isDagitimda || isKoltuk;
+
+            const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(order.customerAddress)}`;
+
+            const priceDisplay = order.totalPrice != null
+                ? `<span class="price-value">${Number(order.totalPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>`
+                : `<span class="price-value empty">Fiyat girilmedi</span>`;
+
+            const posHtml = order.requiresPOS
+                ? `<div class="pos-info pos-needed"><i class="bi bi-credit-card-2-front-fill"></i>POS Gerekli</div>`
+                : `<div class="pos-info pos-not-needed"><i class="bi bi-cash-stack"></i>Nakit</div>`;
+
+            let actionsHtml = '';
+
+            // Maps button always
+            actionsHtml += `
+                <a href="${mapsUrl}" target="_blank" rel="noopener" class="btn-action btn-maps" style="text-decoration:none;">
+                    <i class="bi bi-geo-alt-fill"></i>
+                    Haritada Aç
+                </a>
+            `;
+
+            // Price/POS block for Dagitimda OR Koltuk
+            let priceBlockHtml = '';
+            if (showPriceBlock) {
+                priceBlockHtml = `
+                    <div class="price-block">
+                        <div>
+                            <div class="price-label">Toplam Tutar</div>
+                            ${priceDisplay}
+                        </div>
+                        ${posHtml}
+                    </div>
+                `;
+            }
+
+            // Action buttons based on status & service
+            if (isAlinacak) {
+                if (isKoltuk) {
+                    // Yerinde koltuk yıkama: işlem adreste yapılır ve tamamlanır
+                    actionsHtml += `
+                        <button class="btn-action btn-complete"
+                            onclick="showConfirm('${order.id}', 'Tamamlandi', this)"
+                            data-order-id="${order.id}">
+                            <i class="bi bi-check-circle-fill"></i>
+                            Yıkandı & Ödeme Alındı
+                        </button>
+                    `;
+                } else {
+                    // Halı yıkama: fiş kesilip tesise alınır
+                    actionsHtml += `
+                        <button class="btn-action btn-pickup"
+                            onclick="showConfirm('${order.id}', 'Islemde', this)"
+                            data-order-id="${order.id}">
+                            <i class="bi bi-receipt-cutoff"></i>
+                            Fiş Kesildi & Teslim Alındı
+                        </button>
+                    `;
+                }
+            } else if (isDagitimda) {
+                actionsHtml += `
+                    <button class="btn-action btn-complete"
+                        onclick="showConfirm('${order.id}', 'Tamamlandi', this)"
+                        data-order-id="${order.id}">
+                        <i class="bi bi-check-circle-fill"></i>
+                        Teslim Edildi & Ödeme Alındı
+                    </button>
+                `;
+            }
+
+            return `
+                <div class="driver-card card-enter ${isKoltuk ? 'is-koltuk' : ''}" id="card-${order.id}">
+                    <div class="card-header-row">
+                        <div class="card-badges">
+                            <span class="badge badge-${isKoltuk ? 'koltuk' : 'hali'}">
+                                <i class="bi bi-${isKoltuk ? 'lamp-fill' : 'grid-3x2-gap-fill'}"></i>
+                                ${isKoltuk ? 'Koltuk' : 'Halı'}
+                            </span>
+                            <span class="badge badge-${order.status.toLowerCase()}">
+                                <span class="dot"></span>
+                                ${isAlinacak ? 'Alınacak' : 'Dağıtımda'}
+                            </span>
+                            ${order.requiresPOS ? '<span class="badge badge-pos"><i class="bi bi-credit-card"></i> POS</span>' : ''}
+                        </div>
+                        ${order.carpetCount != null ? `<span style="font-size:.78rem;color:var(--text-muted);font-weight:600;">${order.carpetCount} Adet</span>` : ''}
+                    </div>
+
+                    <div class="card-phone">
+                        <div class="card-phone-icon"><i class="bi bi-telephone-fill"></i></div>
+                        <div>
+                            ${order.customerName ? `<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:2px;">${escapeHtml(order.customerName)}</div>` : ''}
+                            <a href="tel:${order.customerPhone}" style="${order.customerName ? 'font-size:.92rem;color:var(--text-secondary);font-weight:600;' : ''}">${order.customerPhone}</a>
+                        </div>
+                    </div>
+
+                    <div class="card-address">${escapeHtml(order.customerAddress)}</div>
+
+                    ${priceBlockHtml}
+
+                    <div class="card-actions">
+                        ${actionsHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderList() {
+            const list = document.getElementById('cardsList');
+            const filtered = getFilteredOrders();
+
+            if (filtered.length === 0) {
+                const icon = activeTab === 'Alinacak' ? 'bi-inbox' : 'bi-send';
+                const title = activeTab === 'Alinacak' ? 'Alınacak sipariş yok' : 'Dağıtılacak sipariş yok';
+                list.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon"><i class="bi ${icon}"></i></div>
+                        <h3>${title}</h3>
+                        <p>Şu anda aktif görev bulunmuyor</p>
+                    </div>
+                `;
+                return;
+            }
+
+            list.innerHTML = filtered.map(o => renderCard(o)).join('');
+        }
+
+        function updateBadges() {
+            const alinacak = orders.filter(o => o.status === 'Alinacak').length;
+            const dagitimda = orders.filter(o => o.status === 'Dagitimda').length;
+            document.getElementById('badgeAlinacak').textContent = alinacak;
+            document.getElementById('badgeDagitimda').textContent = dagitimda;
+        }
+
+        // ═══════════════════════════════════════════
+        //  Tabs
+        // ═══════════════════════════════════════════
+
+        function switchTab(tab) {
+            activeTab = tab;
+            document.getElementById('tabAlinacak').classList.toggle('active', tab === 'Alinacak');
+            document.getElementById('tabDagitimda').classList.toggle('active', tab === 'Dagitimda');
+            renderList();
+        }
+
+        // ═══════════════════════════════════════════
+        //  Confirm Bottom Sheet
+        // ═══════════════════════════════════════════
+
+        function showConfirm(orderId, newStatus, btnEl) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            pendingAction = { orderId, newStatus, cardEl: document.getElementById(`card-${orderId}`) };
+
+            const overlay = document.getElementById('confirmOverlay');
+            const title = document.getElementById('confirmTitle');
+            const desc = document.getElementById('confirmDesc');
+            const yesBtn = document.getElementById('confirmYes');
+
+            if (newStatus === 'Islemde') {
+                title.textContent = 'Teslim Alındı Onayı';
+                desc.innerHTML = `<strong>${order.customerPhone}</strong> numaralı müşteriden sipariş teslim alındı olarak işaretlenecek.`;
+                yesBtn.textContent = 'Evet, Teslim Alındı';
+                yesBtn.className = 'btn-confirm-yes purple';
+            } else {
+                title.textContent = 'Ödeme & Tamamlama Onayı';
+                const priceText = order.totalPrice != null
+                    ? `${Number(order.totalPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`
+                    : 'belirtilmemiş';
+                desc.innerHTML = `<strong>${order.customerPhone}</strong> – Tutar: <strong>${priceText}</strong><br>Sipariş tamamlandı olarak işaretlenecek.`;
+                yesBtn.textContent = 'Evet, Tamamla';
+                yesBtn.className = 'btn-confirm-yes green';
+            }
+
+            overlay.classList.add('show');
+        }
+
+        function hideConfirm() {
+            document.getElementById('confirmOverlay').classList.remove('show');
+            pendingAction = null;
+        }
+
+        function onOverlayClick(e) {
+            if (e.target === e.currentTarget) hideConfirm();
+        }
+
+        async function confirmAction() {
+            if (!pendingAction) return;
+
+            const { orderId, newStatus, cardEl } = pendingAction;
+            const yesBtn = document.getElementById('confirmYes');
+
+            yesBtn.disabled = true;
+            yesBtn.innerHTML = '<span class="btn-spinner" style="display:inline-block;"></span> İşleniyor...';
+
+            try {
+                await patchStatus(orderId, newStatus);
+
+                hideConfirm();
+
+                // Animate card exit
+                if (cardEl) {
+                    cardEl.classList.remove('card-enter');
+                    cardEl.classList.add('card-exit');
+
+                    cardEl.addEventListener('animationend', () => {
+                        // Remove from local state
+                        orders = orders.filter(o => o.id !== orderId);
+                        updateBadges();
+                        renderList();
+                    }, { once: true });
+                } else {
+                    orders = orders.filter(o => o.id !== orderId);
+                    updateBadges();
+                    renderList();
+                }
+
+                const msg = newStatus === 'Islemde'
+                    ? 'Sipariş teslim alındı!'
+                    : 'Sipariş tamamlandı!';
+                showToast(msg, 'success');
+
+            } catch (err) {
+                showToast(`Hata: ${err.message}`, 'error');
+            } finally {
+                yesBtn.disabled = false;
+                yesBtn.innerHTML = yesBtn.className.includes('purple')
+                    ? 'Evet, Teslim Alındı'
+                    : 'Evet, Tamamla';
+            }
+        }
+
+        // ═══════════════════════════════════════════
+        //  Data Loading
+        // ═══════════════════════════════════════════
+
+        async function loadData() {
+            try {
+                const all = await fetchOrders();
+                orders = all.filter(o => o.status === 'Alinacak' || o.status === 'Dagitimda');
+                updateBadges();
+                renderList();
+            } catch (err) {
+                showToast(`Yükleme hatası: ${err.message}`, 'error');
+            }
+        }
+
+        async function refreshData() {
+            const btn = document.getElementById('btnRefresh');
+            btn.classList.add('spinning');
+            await loadData();
+            setTimeout(() => btn.classList.remove('spinning'), 600);
+        }
+
+        // ═══════════════════════════════════════════
+        //  Helpers
+        // ═══════════════════════════════════════════
+
+        function escapeHtml(text) {
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        let toastTimer = null;
+        function showToast(message, type = 'success') {
+            const el = document.getElementById('toastEl');
+            el.className = `toast-msg ${type}`;
+            const icon = type === 'error' ? 'exclamation-triangle-fill' : 'check-circle-fill';
+            el.innerHTML = `<i class="bi bi-${icon}"></i>${message}`;
+
+            clearTimeout(toastTimer);
+            requestAnimationFrame(() => {
+                el.classList.add('show');
+                toastTimer = setTimeout(() => el.classList.remove('show'), 3000);
+            });
+        }
+
+        // ═══════════════════════════════════════════
+        //  Init
+        // ═══════════════════════════════════════════
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            // Auto-refresh every 45 seconds
+            setInterval(loadData, 45000);
+        });
+    </script>
+</body>
+</html>

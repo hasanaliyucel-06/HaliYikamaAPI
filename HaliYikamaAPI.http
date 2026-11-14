@@ -1,0 +1,39 @@
+@host = http://localhost:5194
+
+### Sağlık kontrolü
+GET {{host}}/health
+Accept: application/json
+
+### Tüm siparişleri listele
+GET {{host}}/api/orders
+Accept: application/json
+
+### Duruma göre filtrele
+GET {{host}}/api/orders?status=YeniTalep
+Accept: application/json
+
+### Telefon ile arama
+GET {{host}}/api/orders/search?phone=0555
+Accept: application/json
+
+### Yeni sipariş oluştur
+POST {{host}}/api/orders
+Content-Type: application/json
+
+{
+  "customerPhone": "05551234567",
+  "customerAddress": "Atatürk Mah. Cumhuriyet Cad. No:1 Merkez",
+  "serviceType": "Hali",
+  "carpetCount": 3,
+  "requiresPOS": false
+}
+
+### Sipariş durumu güncelle (ID'yi değiştirin)
+PATCH {{host}}/api/orders/YOUR-ORDER-GUID-HERE/status
+Content-Type: application/json
+
+{
+  "status": "Alinacak"
+}
+
+###

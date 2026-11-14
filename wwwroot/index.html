@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="tr" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Halı Yıkama – Ofis Yönetim Paneli</title>
+    <meta name="description" content="Halı ve Koltuk Yıkama İşletmesi Sipariş Yönetim Paneli">
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Google Fonts – Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* ───────── Design Tokens ───────── */
+        :root {
+            --font-primary: 'Inter', system-ui, -apple-system, sans-serif;
+            --clr-bg: #f0f2f5;
+            --clr-surface: #ffffff;
+            --clr-surface-hover: #f8f9fb;
+            --clr-text-primary: #1a1d26;
+            --clr-text-secondary: #5f6578;
+            --clr-text-muted: #8b90a0;
+            --clr-border: #e4e7ec;
+            --clr-border-light: #f0f1f5;
+            --clr-accent-hali: #10b981;
+            --clr-accent-hali-bg: #ecfdf5;
+            --clr-accent-koltuk: #3b82f6;
+            --clr-accent-koltuk-bg: #eff6ff;
+            --clr-status-yenitalep: #f59e0b;
+            --clr-status-yenitalep-bg: #fffbeb;
+            --clr-status-alinacak: #8b5cf6;
+            --clr-status-alinacak-bg: #f5f3ff;
+            --clr-status-hazir: #10b981;
+            --clr-status-hazir-bg: #ecfdf5;
+            --clr-status-dagitimda: #3b82f6;
+            --clr-status-dagitimda-bg: #eff6ff;
+            --clr-danger: #ef4444;
+            --clr-danger-bg: #fef2f2;
+            --clr-col-left: #8b5cf6;
+            --clr-col-left-bg: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            --clr-col-right: #10b981;
+            --clr-col-right-bg: linear-gradient(135deg, #10b981, #059669);
+            --shadow-sm: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.06);
+            --shadow-md: 0 4px 12px rgba(0,0,0,.06), 0 2px 4px rgba(0,0,0,.04);
+            --shadow-lg: 0 12px 40px rgba(0,0,0,.1), 0 4px 12px rgba(0,0,0,.05);
+            --shadow-card-hover: 0 8px 30px rgba(0,0,0,.1);
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --transition-fast: 150ms cubic-bezier(.4,0,.2,1);
+            --transition-normal: 250ms cubic-bezier(.4,0,.2,1);
+            --transition-spring: 350ms cubic-bezier(.34,1.56,.64,1);
+        }
+
+        /* ───────── Reset & Base ───────── */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        body {
+            font-family: var(--font-primary);
+            background: var(--clr-bg);
+            color: var(--clr-text-primary);
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ───────── Top Navbar ───────── */
+        .top-navbar {
+            background: var(--clr-surface);
+            border-bottom: 1px solid var(--clr-border);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .top-navbar .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            color: var(--clr-text-primary);
+            text-decoration: none;
+        }
+
+        .top-navbar .brand-icon {
+            width: 38px;
+            height: 38px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 1.1rem;
+        }
+
+        .navbar-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-navbar {
+            background: transparent;
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-sm);
+            padding: 8px 16px;
+            font-size: .85rem;
+            font-weight: 500;
+            color: var(--clr-text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-navbar:hover {
+            background: var(--clr-surface-hover);
+            border-color: var(--clr-text-muted);
+            color: var(--clr-text-primary);
+        }
+
+        .btn-navbar-primary {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: #fff;
+            border-color: transparent;
+        }
+
+        .btn-navbar-primary:hover {
+            opacity: .9;
+            color: #fff;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(139,92,246,.3);
+        }
+
+        /* ───────── Stats Bar ───────── */
+        .stats-bar {
+            padding: 1.25rem 2rem;
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+        }
+
+        .stat-card {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-md);
+            padding: 16px 24px;
+            min-width: 170px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-normal);
+        }
+
+        .stat-card:hover {
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .stat-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            line-height: 1.1;
+        }
+
+        .stat-label {
+            font-size: .78rem;
+            color: var(--clr-text-muted);
+            font-weight: 500;
+            margin-top: 2px;
+        }
+
+        /* ───────── Main Content ───────── */
+        .main-content {
+            padding: 0 2rem 2rem;
+        }
+
+        .columns-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        /* ───────── Column Header ───────── */
+        .column-panel {
+            background: var(--clr-surface);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--clr-border);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .column-header {
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid var(--clr-border-light);
+        }
+
+        .column-header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .column-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            color: #fff;
+        }
+
+        .column-icon.left { background: var(--clr-col-left-bg); }
+        .column-icon.right { background: var(--clr-col-right-bg); }
+
+        .column-title {
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+
+        .column-subtitle {
+            font-size: .78rem;
+            color: var(--clr-text-muted);
+            font-weight: 400;
+        }
+
+        .column-count {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 28px;
+            height: 28px;
+            padding: 0 8px;
+            border-radius: 999px;
+            font-size: .8rem;
+            font-weight: 700;
+        }
+
+        .column-count.left {
+            background: #f5f3ff;
+            color: #7c3aed;
+        }
+
+        .column-count.right {
+            background: #ecfdf5;
+            color: #059669;
+        }
+
+        /* ───────── Cards Container ───────── */
+        .cards-container {
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: calc(100vh - 260px);
+            overflow-y: auto;
+        }
+
+        .cards-container::-webkit-scrollbar { width: 5px; }
+        .cards-container::-webkit-scrollbar-track { background: transparent; }
+        .cards-container::-webkit-scrollbar-thumb { background: var(--clr-border); border-radius: 999px; }
+
+        /* ───────── Order Card ───────── */
+        .order-card {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-md);
+            padding: 18px 20px;
+            box-shadow: var(--shadow-sm);
+            transition: all var(--transition-normal);
+            cursor: default;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .order-card::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            border-radius: 0 4px 4px 0;
+            transition: width var(--transition-fast);
+        }
+
+        .order-card.service-hali::before { background: var(--clr-accent-hali); }
+        .order-card.service-koltuk::before { background: var(--clr-accent-koltuk); }
+
+        .order-card:hover {
+            box-shadow: var(--shadow-card-hover);
+            transform: translateY(-2px);
+            border-color: transparent;
+        }
+
+        .order-card.service-koltuk {
+            border-left: none;
+            background: linear-gradient(135deg, #fafbff 0%, #f0f4ff 100%);
+        }
+
+        .order-card.service-koltuk:hover {
+            background: linear-gradient(135deg, #f5f7ff 0%, #e8edff 100%);
+        }
+
+        .card-top-row {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+
+        .card-badges {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .badge-service {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+        }
+
+        .badge-hali {
+            background: var(--clr-accent-hali-bg);
+            color: var(--clr-accent-hali);
+        }
+
+        .badge-koltuk {
+            background: var(--clr-accent-koltuk-bg);
+            color: var(--clr-accent-koltuk);
+            animation: koltukPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes koltukPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(59,130,246,.15); }
+            50% { box-shadow: 0 0 0 6px rgba(59,130,246,.05); }
+        }
+
+        .badge-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 999px;
+            font-size: .72rem;
+            font-weight: 600;
+        }
+
+        .badge-status.yenitalep { background: var(--clr-status-yenitalep-bg); color: #b45309; }
+        .badge-status.alinacak { background: var(--clr-status-alinacak-bg); color: #6d28d9; }
+        .badge-status.hazir { background: var(--clr-status-hazir-bg); color: #047857; }
+        .badge-status.dagitimda { background: var(--clr-status-dagitimda-bg); color: #1d4ed8; }
+        .badge-status.iptaledildi { background: #f3f4f6; color: #4b5563; }
+
+        .badge-status .pulse-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            animation: dotPulse 1.5s ease-in-out infinite;
+        }
+
+        .badge-status.yenitalep .pulse-dot { background: #f59e0b; }
+        .badge-status.alinacak .pulse-dot { background: #8b5cf6; }
+        .badge-status.hazir .pulse-dot { background: #10b981; }
+        .badge-status.dagitimda .pulse-dot { background: #3b82f6; }
+        .badge-status.iptaledildi .pulse-dot { background: #9ca3af; }
+
+        @keyframes dotPulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .4; transform: scale(.7); }
+        }
+
+        .card-phone {
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--clr-text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .card-phone i { color: var(--clr-text-muted); font-size: .85rem; }
+
+        .card-address {
+            font-size: .82rem;
+            color: var(--clr-text-secondary);
+            line-height: 1.5;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: flex-start;
+            gap: 6px;
+        }
+
+        .card-address i {
+            color: var(--clr-text-muted);
+            font-size: .8rem;
+            margin-top: 2px;
+            flex-shrink: 0;
+        }
+
+        .card-meta-row {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+
+        .card-meta {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: .78rem;
+            color: var(--clr-text-muted);
+        }
+
+        .card-meta i { font-size: .85rem; }
+        .card-meta strong { color: var(--clr-text-primary); font-weight: 600; }
+
+        .card-footer {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding-top: 12px;
+            border-top: 1px solid var(--clr-border-light);
+        }
+
+        .card-date {
+            font-size: .75rem;
+            color: var(--clr-text-muted);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .card-price {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: var(--clr-text-primary);
+        }
+
+        .card-price.empty {
+            font-weight: 500;
+            font-size: .8rem;
+            color: var(--clr-text-muted);
+            font-style: italic;
+        }
+
+        .btn-edit {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 7px 16px;
+            border-radius: var(--radius-sm);
+            font-size: .8rem;
+            font-weight: 600;
+            border: 1px solid var(--clr-border);
+            background: var(--clr-surface);
+            color: var(--clr-text-secondary);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-edit:hover {
+            background: #7c3aed;
+            color: #fff;
+            border-color: #7c3aed;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(124,58,237,.25);
+        }
+
+        .btn-edit i { font-size: .9rem; }
+
+        /* ───────── POS Badge ───────── */
+        .badge-pos {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: .7rem;
+            font-weight: 600;
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        /* ───────── Empty State ───────── */
+        .empty-state {
+            text-align: center;
+            padding: 48px 24px;
+            color: var(--clr-text-muted);
+        }
+
+        .empty-state i {
+            font-size: 3rem;
+            opacity: .3;
+            margin-bottom: 12px;
+        }
+
+        .empty-state p {
+            font-size: .9rem;
+            font-weight: 500;
+        }
+
+        /* ───────── Modal ───────── */
+        .modal-content {
+            border: none;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .modal-header {
+            border-bottom: 1px solid var(--clr-border-light);
+            padding: 20px 24px;
+        }
+
+        .modal-title {
+            font-weight: 700;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .modal-title .title-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: .9rem;
+        }
+
+        .modal-body { padding: 24px; }
+
+        .modal-footer {
+            border-top: 1px solid var(--clr-border-light);
+            padding: 16px 24px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            font-size: .82rem;
+            color: var(--clr-text-secondary);
+            margin-bottom: 6px;
+        }
+
+        .form-control, .form-select {
+            border-radius: var(--radius-sm);
+            border: 1.5px solid var(--clr-border);
+            padding: 10px 14px;
+            font-size: .9rem;
+            font-family: var(--font-primary);
+            transition: all var(--transition-fast);
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139,92,246,.12);
+        }
+
+        .modal-order-info {
+            background: var(--clr-bg);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+
+        .modal-order-info .info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: .85rem;
+            margin-bottom: 6px;
+        }
+
+        .modal-order-info .info-row:last-child { margin-bottom: 0; }
+        .modal-order-info .info-row i { color: var(--clr-text-muted); width: 18px; text-align: center; }
+        .modal-order-info .info-row strong { color: var(--clr-text-primary); }
+
+        .btn-save {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            border: none;
+            color: #fff;
+            border-radius: var(--radius-sm);
+            padding: 10px 24px;
+            font-weight: 600;
+            font-size: .88rem;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-save:hover {
+            opacity: .9;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 16px rgba(139,92,246,.35);
+            color: #fff;
+        }
+
+        .btn-cancel {
+            background: transparent;
+            border: 1px solid var(--clr-border);
+            color: var(--clr-text-secondary);
+            border-radius: var(--radius-sm);
+            padding: 10px 24px;
+            font-weight: 500;
+            font-size: .88rem;
+            transition: all var(--transition-fast);
+        }
+
+        .btn-cancel:hover {
+            background: var(--clr-bg);
+            color: var(--clr-text-primary);
+        }
+
+        /* ───────── Toast ───────── */
+        .toast-container {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 9999;
+        }
+
+        .toast {
+            border: none;
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            font-family: var(--font-primary);
+        }
+
+        .toast-success .toast-body { color: #047857; }
+        .toast-error .toast-body { color: #dc2626; }
+
+        /* ───────── Loading Skeleton ───────── */
+        .skeleton-card {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            animation: skeletonPulse 1.5s ease-in-out infinite;
+        }
+
+        .skeleton-line {
+            height: 14px;
+            background: var(--clr-bg);
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .skeleton-line.w-60 { width: 60%; }
+        .skeleton-line.w-80 { width: 80%; }
+        .skeleton-line.w-40 { width: 40%; }
+
+        @keyframes skeletonPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
+
+        /* ───────── Spin ───────── */
+        .spinner-border-sm { width: 1rem; height: 1rem; }
+
+        /* ───────── Card Appear Animation ───────── */
+        @keyframes cardSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .order-card {
+            animation: cardSlideIn var(--transition-normal) ease-out both;
+        }
+
+        /* ───────── Responsive ───────── */
+        @media (max-width: 992px) {
+            .columns-wrapper { grid-template-columns: 1fr; }
+            .top-navbar { padding: 0 1rem; }
+            .stats-bar { padding: 1rem; }
+            .main-content { padding: 0 1rem 1rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ═══════ TOP NAVBAR ═══════ -->
+    <nav class="top-navbar">
+        <a href="/" class="brand">
+            <div class="brand-icon"><i class="bi bi-water"></i></div>
+            <span>Halı Yıkama</span>
+        </a>
+        <div class="navbar-actions">
+            <button class="btn-navbar" onclick="loadOrders()" title="Yenile">
+                <i class="bi bi-arrow-clockwise"></i>
+                Yenile
+            </button>
+            <a href="/swagger" target="_blank" class="btn-navbar">
+                <i class="bi bi-code-slash"></i>
+                API Docs
+            </a>
+            <button class="btn-navbar btn-navbar-primary" data-bs-toggle="modal" data-bs-target="#newOrderModal">
+                <i class="bi bi-plus-lg"></i>
+                Yeni Sipariş
+            </button>
+        </div>
+    </nav>
+
+    <!-- ═══════ STATS BAR ═══════ -->
+    <div class="stats-bar">
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#fffbeb;color:#f59e0b;">
+                <i class="bi bi-inbox-fill"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="statYeniTalep">–</div>
+                <div class="stat-label">Yeni Talep</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f5f3ff;color:#8b5cf6;">
+                <i class="bi bi-truck"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="statAlinacak">–</div>
+                <div class="stat-label">Alınacak</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#ecfdf5;color:#10b981;">
+                <i class="bi bi-check-circle-fill"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="statHazir">–</div>
+                <div class="stat-label">Hazır</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#eff6ff;color:#3b82f6;">
+                <i class="bi bi-send-fill"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="statDagitimda">–</div>
+                <div class="stat-label">Dağıtımda</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon" style="background:#f0f2f5;color:#6b7280;">
+                <i class="bi bi-stack"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="statToplam">–</div>
+                <div class="stat-label">Toplam Görev</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ MAIN COLUMNS ═══════ -->
+    <div class="main-content">
+        <div class="columns-wrapper">
+
+            <!-- ── LEFT COLUMN: Alınacaklar / Gidilecekler ── -->
+            <div class="column-panel">
+                <div class="column-header">
+                    <div class="column-header-left">
+                        <div class="column-icon left"><i class="bi bi-box-arrow-in-down"></i></div>
+                        <div>
+                            <div class="column-title">Alınacaklar / Gidilecekler</div>
+                            <div class="column-subtitle">Yeni talepler & alınacak siparişler</div>
+                        </div>
+                    </div>
+                    <span class="column-count left" id="leftCount">0</span>
+                </div>
+                <div class="cards-container" id="leftCards">
+                    <!-- skeleton loading -->
+                    <div class="skeleton-card">
+                        <div class="skeleton-line w-60"></div>
+                        <div class="skeleton-line w-80"></div>
+                        <div class="skeleton-line w-40"></div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-line w-80"></div>
+                        <div class="skeleton-line w-60"></div>
+                        <div class="skeleton-line w-40"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── RIGHT COLUMN: Dağıtılacaklar ── -->
+            <div class="column-panel">
+                <div class="column-header">
+                    <div class="column-header-left">
+                        <div class="column-icon right"><i class="bi bi-send-check-fill"></i></div>
+                        <div>
+                            <div class="column-title">Dağıtılacaklar</div>
+                            <div class="column-subtitle">Hazır & dağıtımda siparişler</div>
+                        </div>
+                    </div>
+                    <span class="column-count right" id="rightCount">0</span>
+                </div>
+                <div class="cards-container" id="rightCards">
+                    <div class="skeleton-card">
+                        <div class="skeleton-line w-60"></div>
+                        <div class="skeleton-line w-80"></div>
+                        <div class="skeleton-line w-40"></div>
+                    </div>
+                    <div class="skeleton-card">
+                        <div class="skeleton-line w-80"></div>
+                        <div class="skeleton-line w-60"></div>
+                        <div class="skeleton-line w-40"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ EDIT MODAL ═══════ -->
+    <div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalLabel">
+                        <span class="title-icon"><i class="bi bi-pencil-square"></i></span>
+                        Sipariş Düzenle
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="editOrderId">
+
+                    <!-- Order summary -->
+                    <div class="modal-order-info">
+                        <div class="info-row" id="editInfoNameRow" style="display:none;">
+                            <i class="bi bi-person-fill"></i>
+                            <strong id="editInfoName">–</strong>
+                        </div>
+                        <div class="info-row">
+                            <i class="bi bi-telephone-fill"></i>
+                            <strong id="editInfoPhone">–</strong>
+                        </div>
+                        <div class="info-row">
+                            <i class="bi bi-geo-alt-fill"></i>
+                            <span id="editInfoAddress">–</span>
+                        </div>
+                        <div class="info-row">
+                            <i class="bi bi-tag-fill"></i>
+                            <span id="editInfoService">–</span>
+                        </div>
+                    </div>
+
+                    <!-- Customer Name -->
+                    <div class="mb-3">
+                        <label for="editCustomerName" class="form-label">
+                            <i class="bi bi-person me-1"></i>Müşteri Adı
+                        </label>
+                        <input type="text" class="form-control" id="editCustomerName" placeholder="Müşteri adı...">
+                    </div>
+
+                    <!-- Receipt Number -->
+                    <div class="mb-3">
+                        <label for="editReceiptNumber" class="form-label">
+                            <i class="bi bi-receipt-cutoff me-1"></i>Fiş Numarası
+                        </label>
+                        <input type="text" class="form-control" id="editReceiptNumber" placeholder="Fiş numarası giriniz...">
+                    </div>
+
+                    <!-- Total Price -->
+                    <div class="mb-3">
+                        <label for="editTotalPrice" class="form-label">
+                            <i class="bi bi-currency-lira me-1"></i>Toplam Fiyat
+                        </label>
+                        <div class="input-group">
+                            <input type="number" step="0.01" min="0" class="form-control" id="editTotalPrice" placeholder="0.00">
+                            <span class="input-group-text" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-color:var(--clr-border);">₺</span>
+                        </div>
+                    </div>
+
+                    <!-- Status -->
+                    <div class="mb-0">
+                        <label for="editStatus" class="form-label">
+                            <i class="bi bi-arrow-repeat me-1"></i>Durum
+                        </label>
+                        <select class="form-select" id="editStatus">
+                            <option value="YeniTalep">🟡 Yeni Talep</option>
+                            <option value="Alinacak">🟣 Alınacak</option>
+                            <option value="Islemde">🔵 İşlemde</option>
+                            <option value="Hazir">🟢 Hazır</option>
+                            <option value="Dagitimda">📦 Dağıtımda</option>
+                            <option value="Tamamlandi">✅ Tamamlandı</option>
+                            <option value="IptalEdildi">⚪ İptal Edildi</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-save" onclick="saveOrder()" id="btnSave">
+                        <i class="bi bi-check2-circle me-1"></i>Kaydet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ NEW ORDER MODAL ═══════ -->
+    <div class="modal fade" id="newOrderModal" tabindex="-1" aria-labelledby="newOrderModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="newOrderModalLabel">
+                        <span class="title-icon"><i class="bi bi-plus-circle-fill"></i></span>
+                        Yeni Sipariş Oluştur
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="newCustomerName" class="form-label">
+                            <i class="bi bi-person me-1"></i>Müşteri Adı (Opsiyonel)
+                        </label>
+                        <input type="text" class="form-control" id="newCustomerName" placeholder="Müşteri adı soyadı">
+                    </div>
+                    <div class="mb-3">
+                        <label for="newPhone" class="form-label">
+                            <i class="bi bi-telephone me-1"></i>Telefon Numarası
+                        </label>
+                        <input type="tel" class="form-control" id="newPhone" placeholder="05XX XXX XX XX" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="newAddress" class="form-label">
+                            <i class="bi bi-geo-alt me-1"></i>Adres
+                        </label>
+                        <textarea class="form-control" id="newAddress" rows="2" placeholder="Müşteri adresi..." required></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="newServiceType" class="form-label">
+                                <i class="bi bi-tag me-1"></i>Hizmet Türü
+                            </label>
+                            <select class="form-select" id="newServiceType">
+                                <option value="Hali">🟩 Halı</option>
+                                <option value="Koltuk">🟦 Koltuk</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="newCarpetCount" class="form-label">
+                                <i class="bi bi-layers me-1"></i>Halı Adedi
+                            </label>
+                            <input type="number" min="0" class="form-control" id="newCarpetCount" placeholder="0">
+                        </div>
+                    </div>
+                    <div class="mb-0 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="newRequiresPOS" style="width:2.5em;height:1.25em;">
+                        <label class="form-check-label fw-semibold" for="newRequiresPOS" style="font-size:.88rem;">
+                            <i class="bi bi-credit-card me-1"></i>POS Cihazı Gerekli
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-save" onclick="createOrder()" id="btnCreate">
+                        <i class="bi bi-plus-circle me-1"></i>Oluştur
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════ TOAST ═══════ -->
+    <div class="toast-container">
+        <div id="appToast" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body" id="toastMessage"></div>
+                <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5.3 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // ═══════════════════════════════════════════════
+        //  Constants & State
+        // ═══════════════════════════════════════════════
+
+        const API_BASE = '/api/orders';
+        let allOrders = [];
+        let editModalInstance = null;
+        let newOrderModalInstance = null;
+
+        const STATUS_LABELS = {
+            YeniTalep: 'Yeni Talep',
+            Alinacak: 'Alınacak',
+            Islemde: 'İşlemde',
+            Hazir: 'Hazır',
+            Dagitimda: 'Dağıtımda',
+            Tamamlandi: 'Tamamlandı',
+            IptalEdildi: 'İptal Edildi'
+        };
+
+        const SERVICE_LABELS = {
+            Hali: 'Halı',
+            Koltuk: 'Koltuk'
+        };
+
+        // ═══════════════════════════════════════════════
+        //  API Functions
+        // ═══════════════════════════════════════════════
+
+        async function fetchOrders() {
+            const response = await fetch(API_BASE);
+            if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+            return await response.json();
+        }
+
+        async function updateOrder(id, data) {
+            const response = await fetch(`${API_BASE}/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.message || `Güncelleme hatası: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        async function createOrderAPI(data) {
+            const response = await fetch(API_BASE, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.message || `Oluşturma hatası: ${response.status}`);
+            }
+            return await response.json();
+        }
+
+        // ═══════════════════════════════════════════════
+        //  UI Rendering
+        // ═══════════════════════════════════════════════
+
+        function renderOrderCard(order, index) {
+            const isKoltuk = order.serviceType === 'Koltuk';
+            const statusKey = order.status.toLowerCase();
+            const priceDisplay = order.totalPrice != null
+                ? `<span class="card-price">${Number(order.totalPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺</span>`
+                : `<span class="card-price empty">Fiyat girilmedi</span>`;
+
+            const date = new Date(order.createdAt);
+            const dateStr = date.toLocaleDateString('tr-TR', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            return `
+                <div class="order-card service-${isKoltuk ? 'koltuk' : 'hali'}" style="animation-delay:${index * 60}ms" data-id="${order.id}">
+                    <div class="card-top-row">
+                        <div class="card-badges">
+                            <span class="badge-service badge-${isKoltuk ? 'koltuk' : 'hali'}">
+                                <i class="bi bi-${isKoltuk ? 'lamp-fill' : 'grid-3x2-gap-fill'}"></i>
+                                ${SERVICE_LABELS[order.serviceType] || order.serviceType}
+                            </span>
+                            <span class="badge-status ${statusKey}">
+                                <span class="pulse-dot"></span>
+                                ${STATUS_LABELS[order.status] || order.status}
+                            </span>
+                            ${order.requiresPOS ? '<span class="badge-pos"><i class="bi bi-credit-card-2-front"></i> POS</span>' : ''}
+                        </div>
+                        <button class="btn-edit" onclick='openEditModal(${JSON.stringify(order).replace(/'/g, "&#39;")})'>
+                            <i class="bi bi-pencil-square"></i>
+                            Düzenle
+                        </button>
+                    </div>
+
+                    <div class="card-phone">
+                        <i class="bi bi-telephone-fill"></i>
+                        <span>${escapeHtml(order.customerPhone)}</span>
+                        ${order.customerName ? `<span class="badge bg-light text-dark border ms-1" style="font-weight:600;"><i class="bi bi-person me-1"></i>${escapeHtml(order.customerName)}</span>` : ''}
+                    </div>
+
+                    <div class="card-address">
+                        <i class="bi bi-geo-alt-fill"></i>
+                        <span>${escapeHtml(order.customerAddress)}</span>
+                    </div>
+
+                    <div class="card-meta-row">
+                        ${order.carpetCount != null ? `
+                            <div class="card-meta">
+                                <i class="bi bi-layers-fill"></i>
+                                <strong>${order.carpetCount}</strong> adet
+                            </div>
+                        ` : ''}
+                        ${order.receiptNumber ? `
+                            <div class="card-meta">
+                                <i class="bi bi-receipt"></i>
+                                Fiş: <strong>${escapeHtml(order.receiptNumber)}</strong>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <div class="card-footer">
+                        <span class="card-date">
+                            <i class="bi bi-clock"></i>
+                            ${dateStr}
+                        </span>
+                        ${priceDisplay}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderColumns(orders) {
+            const leftOrders = orders.filter(o =>
+                o.status === 'YeniTalep' || o.status === 'Alinacak'
+            );
+            const rightOrders = orders.filter(o =>
+                o.status === 'Hazir' || o.status === 'Dagitimda'
+            );
+
+            const leftContainer = document.getElementById('leftCards');
+            const rightContainer = document.getElementById('rightCards');
+
+            // Left column
+            if (leftOrders.length === 0) {
+                leftContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-inbox"></i>
+                        <p>Alınacak sipariş bulunmuyor</p>
+                    </div>`;
+            } else {
+                leftContainer.innerHTML = leftOrders.map((o, i) => renderOrderCard(o, i)).join('');
+            }
+
+            // Right column
+            if (rightOrders.length === 0) {
+                rightContainer.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-send"></i>
+                        <p>Dağıtılacak sipariş bulunmuyor</p>
+                    </div>`;
+            } else {
+                rightContainer.innerHTML = rightOrders.map((o, i) => renderOrderCard(o, i)).join('');
+            }
+
+            // Update counts
+            document.getElementById('leftCount').textContent = leftOrders.length;
+            document.getElementById('rightCount').textContent = rightOrders.length;
+        }
+
+        function updateStats(orders) {
+            const counts = { YeniTalep: 0, Alinacak: 0, Hazir: 0, Dagitimda: 0 };
+            orders.forEach(o => {
+                if (counts.hasOwnProperty(o.status)) counts[o.status]++;
+            });
+
+            document.getElementById('statYeniTalep').textContent = counts.YeniTalep;
+            document.getElementById('statAlinacak').textContent = counts.Alinacak;
+            document.getElementById('statHazir').textContent = counts.Hazir;
+            document.getElementById('statDagitimda').textContent = counts.Dagitimda;
+            document.getElementById('statToplam').textContent =
+                counts.YeniTalep + counts.Alinacak + counts.Hazir + counts.Dagitimda;
+        }
+
+        // ═══════════════════════════════════════════════
+        //  Edit Modal
+        // ═══════════════════════════════════════════════
+
+        function openEditModal(order) {
+            document.getElementById('editOrderId').value = order.id;
+
+            const nameRow = document.getElementById('editInfoNameRow');
+            if (order.customerName) {
+                document.getElementById('editInfoName').textContent = order.customerName;
+                nameRow.style.display = 'flex';
+            } else {
+                nameRow.style.display = 'none';
+            }
+            document.getElementById('editCustomerName').value = order.customerName || '';
+
+            document.getElementById('editInfoPhone').textContent = order.customerPhone;
+            document.getElementById('editInfoAddress').textContent = order.customerAddress;
+            document.getElementById('editInfoService').textContent =
+                `${SERVICE_LABELS[order.serviceType] || order.serviceType}${order.carpetCount != null ? ` – ${order.carpetCount} adet` : ''}`;
+
+            document.getElementById('editReceiptNumber').value = order.receiptNumber || '';
+            document.getElementById('editTotalPrice').value = order.totalPrice ?? '';
+            document.getElementById('editStatus').value = order.status;
+
+            // Store the full order for PUT
+            document.getElementById('editOrderId').dataset.order = JSON.stringify(order);
+
+            editModalInstance.show();
+        }
+
+        async function saveOrder() {
+            const btn = document.getElementById('btnSave');
+            const orderId = document.getElementById('editOrderId').value;
+            const original = JSON.parse(document.getElementById('editOrderId').dataset.order);
+
+            const customerName = document.getElementById('editCustomerName').value.trim() || null;
+            const receiptNumber = document.getElementById('editReceiptNumber').value.trim() || null;
+            const totalPriceVal = document.getElementById('editTotalPrice').value;
+            const totalPrice = totalPriceVal !== '' ? parseFloat(totalPriceVal) : null;
+            const status = document.getElementById('editStatus').value;
+
+            const payload = {
+                customerName,
+                customerPhone: original.customerPhone,
+                customerAddress: original.customerAddress,
+                serviceType: original.serviceType,
+                carpetCount: original.carpetCount,
+                receiptNumber,
+                totalPrice,
+                requiresPOS: original.requiresPOS,
+                status
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Kaydediliyor...';
+
+            try {
+                await updateOrder(orderId, payload);
+                editModalInstance.hide();
+                showToast('Sipariş başarıyla güncellendi!', 'success');
+                await loadOrders();
+            } catch (error) {
+                showToast(`Hata: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check2-circle me-1"></i>Kaydet';
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        //  New Order
+        // ═══════════════════════════════════════════════
+
+        async function createOrder() {
+            const btn = document.getElementById('btnCreate');
+            const customerName = document.getElementById('newCustomerName').value.trim() || null;
+            const phone = document.getElementById('newPhone').value.trim();
+            const address = document.getElementById('newAddress').value.trim();
+            const serviceType = document.getElementById('newServiceType').value;
+            const carpetCountVal = document.getElementById('newCarpetCount').value;
+            const carpetCount = carpetCountVal !== '' ? parseInt(carpetCountVal, 10) : null;
+            const requiresPOS = document.getElementById('newRequiresPOS').checked;
+
+            if (!phone || !address) {
+                showToast('Telefon ve adres zorunludur!', 'error');
+                return;
+            }
+
+            const payload = {
+                customerName,
+                customerPhone: phone,
+                customerAddress: address,
+                serviceType,
+                carpetCount,
+                receiptNumber: null,
+                totalPrice: null,
+                requiresPOS
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Oluşturuluyor...';
+
+            try {
+                await createOrderAPI(payload);
+                newOrderModalInstance.hide();
+                showToast('Sipariş başarıyla oluşturuldu!', 'success');
+
+                // Reset form
+                document.getElementById('newCustomerName').value = '';
+                document.getElementById('newPhone').value = '';
+                document.getElementById('newAddress').value = '';
+                document.getElementById('newServiceType').value = 'Hali';
+                document.getElementById('newCarpetCount').value = '';
+                document.getElementById('newRequiresPOS').checked = false;
+
+                await loadOrders();
+            } catch (error) {
+                showToast(`Hata: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Oluştur';
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        //  Load & Refresh
+        // ═══════════════════════════════════════════════
+
+        async function loadOrders() {
+            try {
+                allOrders = await fetchOrders();
+                renderColumns(allOrders);
+                updateStats(allOrders);
+            } catch (error) {
+                console.error('Siparişler yüklenemedi:', error);
+                showToast(`Yükleme hatası: ${error.message}`, 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════
+        //  Helpers
+        // ═══════════════════════════════════════════════
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function showToast(message, type = 'success') {
+            const toastEl = document.getElementById('appToast');
+            const msgEl = document.getElementById('toastMessage');
+
+            toastEl.classList.remove('toast-success', 'toast-error');
+            toastEl.classList.add(type === 'error' ? 'toast-error' : 'toast-success');
+
+            const icon = type === 'error' ? 'exclamation-triangle-fill' : 'check-circle-fill';
+            msgEl.innerHTML = `<i class="bi bi-${icon} me-2"></i>${message}`;
+
+            const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3500 });
+            toast.show();
+        }
+
+        // ═══════════════════════════════════════════════
+        //  Init
+        // ═══════════════════════════════════════════════
+
+        document.addEventListener('DOMContentLoaded', () => {
+            editModalInstance = new bootstrap.Modal(document.getElementById('editModal'));
+            newOrderModalInstance = new bootstrap.Modal(document.getElementById('newOrderModal'));
+            loadOrders();
+
+            // Auto-refresh every 30 seconds
+            setInterval(loadOrders, 30000);
+        });
+    </script>
+</body>
+</html>
