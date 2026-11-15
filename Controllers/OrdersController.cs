@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HaliYikamaAPI.Data;
@@ -14,6 +15,7 @@ namespace HaliYikamaAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 [Produces("application/json")]
 public class OrdersController : ControllerBase
 {
@@ -236,6 +238,7 @@ public class OrdersController : ControllerBase
     /// <param name="dto">Güncelleme verileri</param>
     /// <returns>Güncellenmiş sipariş</returns>
     [HttpPut("{id:guid}")]
+    [Authorize(Roles = "CompanyAdmin")]
     [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -325,6 +328,12 @@ public class OrdersController : ControllerBase
             return Forbid();
         }
 
+        // Durum geçiş kontrolü (Örn: Tamamlanmış veya İptal edilmiş sipariş değiştirilemez)
+        if (!IsValidStatusTransition(order.Status, dto.Status, order.ServiceType))
+        {
+            return BadRequest(new { message = $"'{order.Status}' durumundan '{dto.Status}' durumuna doğrudan geçiş yapılamaz." });
+        }
+
         order.Status = dto.Status;
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
@@ -332,7 +341,17 @@ public class OrdersController : ControllerBase
         _logger.LogInformation("Sipariş durumu güncellendi: {OrderId} -> {Status}", order.Id, order.Status);
 
         // Müşteriye WhatsApp durum bildirimi gönder (arka planda, hata ana akışı engellemez)
-        _ = TrySendStatusNotificationAsync(order, dto.Status);
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await TrySendStatusNotificationAsync(order, dto.Status);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "WhatsApp durum bildirimi arka planda gönderilirken hata: {OrderId}", order.Id);
+            }
+        });
 
         return Ok(MapToResponseDto(order));
     }
@@ -342,12 +361,13 @@ public class OrdersController : ControllerBase
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Siparişe sürücü atar veya atamayı kaldırır (DriverId null gönderilirse kaldırılır).
+    /// Siparişe sürücü atar veya atamayı kaldırır (DriverId null gönderilirse kaldırılır). Yalnızca firma yöneticisi yapabilir.
     /// </summary>
     /// <param name="id">Sipariş ID'si</param>
     /// <param name="dto">Sürücü atama verisi</param>
     /// <returns>Güncellenmiş sipariş</returns>
     [HttpPatch("{id:guid}/assign-driver")]
+    [Authorize(Roles = "CompanyAdmin")]
     [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -399,10 +419,11 @@ public class OrdersController : ControllerBase
     // ──────────────────────────────────────────────
 
     /// <summary>
-    /// Belirtilen siparişi siler. Sürücüler sipariş silemez, sadece firma yöneticileri silebilir.
+    /// Belirtilen siparişi siler. Yalnızca firma yöneticileri silebilir.
     /// </summary>
     /// <param name="id">Sipariş ID'si</param>
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "CompanyAdmin")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -548,5 +569,32 @@ public class OrdersController : ControllerBase
             return "90" + digits;
         }
         return digits;
+    }
+
+    /// <summary>
+    /// Durum geçiş kurallarını kontrol eder.
+    /// </summary>
+    private static bool IsValidStatusTransition(OrderStatus current, OrderStatus next, ServiceType service)
+    {
+        if (current == next) return true;
+
+        // Tamamlanmış ve İptal edilmiş siparişler kilitlidir
+        if (current == OrderStatus.IptalEdildi || current == OrderStatus.Tamamlandi)
+        {
+            return false;
+        }
+
+        // İstisna: Her aktif durumdan doğrudan İptal Edildi'ye geçilebilir
+        if (next == OrderStatus.IptalEdildi) return true;
+
+        return current switch
+        {
+            OrderStatus.YeniTalep => next == OrderStatus.Alinacak || next == OrderStatus.Islemde,
+            OrderStatus.Alinacak => next == OrderStatus.Islemde || (service == ServiceType.Koltuk && next == OrderStatus.Tamamlandi),
+            OrderStatus.Islemde => next == OrderStatus.Hazir,
+            OrderStatus.Hazir => next == OrderStatus.Dagitimda,
+            OrderStatus.Dagitimda => next == OrderStatus.Tamamlandi,
+            _ => false
+        };
     }
 }

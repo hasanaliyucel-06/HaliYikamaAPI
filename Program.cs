@@ -1,6 +1,8 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -46,11 +48,24 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = jwtIssuer,
         ValidateAudience = true,
         ValidAudience = jwtAudience,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.FromSeconds(30)
     };
 });
 
 builder.Services.AddAuthorization();
+
+// Rate Limiting — Brute-force ve DDoS koruması
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddFixedWindowLimiter("fixed", opt =>
+    {
+        opt.PermitLimit = 120;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        opt.QueueLimit = 10;
+    });
+});
 
 // Controllers – Enum'ları string olarak serialize et
 builder.Services.AddControllers()
@@ -216,6 +231,9 @@ app.UseCors("AllowAll");
 // wwwroot klasöründen statik dosya sunumu
 app.UseDefaultFiles(); // index.html otomatik sunulsun
 app.UseStaticFiles();
+
+// Rate limiter
+app.UseRateLimiter();
 
 // Kimlik doğrulama & Yetkilendirme middleware sırası
 app.UseAuthentication();

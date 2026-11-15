@@ -354,6 +354,72 @@
                 <i class="bi bi-box-arrow-in-right"></i>
                 Ofis Paneline Giriş Yap
             </button>
+            <div class="text-center mt-3">
+                <a href="#" onclick="toggleRegister(true); return false;" style="color:#a78bfa;font-size:0.85rem;text-decoration:none;">
+                    <i class="bi bi-plus-circle me-1"></i>Yeni Firma mısınız? Hemen Kayıt Olun →
+                </a>
+            </div>
+        </form>
+
+        <!-- 1.5. Firma Kayıt Formu -->
+        <form id="formRegister" style="display: none;" onsubmit="handleCompanyRegister(event)">
+            <div class="input-group-custom">
+                <label class="form-label" for="regName">Firma Adı</label>
+                <div style="position: relative;">
+                    <i class="bi bi-building icon"></i>
+                    <input type="text" id="regName" class="form-control-custom" placeholder="Örn: Yıldız Halı Yıkama" required>
+                </div>
+            </div>
+
+            <div class="input-group-custom">
+                <label class="form-label" for="regEmail">E-Posta Adresi</label>
+                <div style="position: relative;">
+                    <i class="bi bi-envelope icon"></i>
+                    <input type="email" id="regEmail" class="form-control-custom" placeholder="firma@ornek.com" required autocomplete="email">
+                </div>
+            </div>
+
+            <div class="input-group-custom">
+                <label class="form-label" for="regPassword">Şifre (En az 6 karakter)</label>
+                <div style="position: relative;">
+                    <i class="bi bi-lock icon"></i>
+                    <input type="password" id="regPassword" class="form-control-custom" placeholder="••••••••" required minlength="6" autocomplete="new-password">
+                </div>
+            </div>
+
+            <div class="input-group-custom">
+                <label class="form-label" for="regPhone">İletişim Telefonu</label>
+                <div style="position: relative;">
+                    <i class="bi bi-telephone icon"></i>
+                    <input type="tel" id="regPhone" class="form-control-custom" placeholder="05XX XXX XX XX" required>
+                </div>
+            </div>
+
+            <div class="input-group-custom">
+                <label class="form-label" for="regAddress">Adres (Opsiyonel)</label>
+                <div style="position: relative;">
+                    <i class="bi bi-geo-alt icon"></i>
+                    <input type="text" id="regAddress" class="form-control-custom" placeholder="İl, İlçe veya Açık Adres">
+                </div>
+            </div>
+
+            <div class="input-group-custom">
+                <label class="form-label" for="regPrefix">Sürücü Kod Öneki (Opsiyonel)</label>
+                <div style="position: relative;">
+                    <i class="bi bi-tag icon"></i>
+                    <input type="text" id="regPrefix" class="form-control-custom" placeholder="Örn: YLD (Boşsa otomatik)" maxlength="5">
+                </div>
+            </div>
+
+            <button type="submit" class="btn-submit btn-company" id="btnRegisterSubmit">
+                <i class="bi bi-check-circle"></i>
+                Firma Hesabı Oluştur ve Başla
+            </button>
+            <div class="text-center mt-3">
+                <a href="#" onclick="toggleRegister(false); return false;" style="color:#94a3b8;font-size:0.85rem;text-decoration:none;">
+                    ← Zaten hesabınız var mı? Giriş Yapın
+                </a>
+            </div>
         </form>
 
         <!-- 2. Sürücü Formu (Şifresiz, tek kod ile) -->
@@ -388,40 +454,71 @@
 
     <script>
         let currentTab = 'company';
+        let isRegisterMode = false;
 
         // URL parametresi ile tab yönlendirme (?role=driver)
-        window.addEventListener('DOMContentLoaded', () => {
+        window.addEventListener('DOMContentLoaded', async () => {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('role') === 'driver') {
                 switchTab('driver');
             }
 
-            // Halihazırda geçerli bir oturum var mı?
+            // Halihazırda geçerli bir oturum var mı? /api/auth/me ile doğrula
             const token = localStorage.getItem('hali_token');
             const userStr = localStorage.getItem('hali_user');
             if (token && userStr) {
                 try {
-                    const user = JSON.parse(userStr);
-                    if (user.role === 'CompanyAdmin') {
-                        window.location.href = '/index.html';
-                    } else if (user.role === 'Driver') {
-                        window.location.href = '/driver.html';
+                    const res = await fetch('/api/auth/me', {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (res.ok) {
+                        const user = await res.json();
+                        if (user.role === 'CompanyAdmin') {
+                            window.location.href = '/index.html';
+                        } else if (user.role === 'Driver') {
+                            window.location.href = '/driver.html';
+                        }
+                    } else {
+                        // Token süresi dolmuş veya geçersiz
+                        localStorage.clear();
                     }
                 } catch (e) {
-                    localStorage.clear();
+                    // Offline veya hata, bekle
                 }
             }
         });
 
+        function toggleRegister(show) {
+            isRegisterMode = show;
+            hideError();
+            const formCompany = document.getElementById('formCompany');
+            const formRegister = document.getElementById('formRegister');
+            const tabSwitcher = document.querySelector('.tab-switcher');
+
+            if (show) {
+                formCompany.style.display = 'none';
+                formRegister.style.display = 'block';
+                document.getElementById('regName').focus();
+            } else {
+                formCompany.style.display = 'block';
+                formRegister.style.display = 'none';
+                document.getElementById('companyEmail').focus();
+            }
+        }
+
         function switchTab(tab) {
             currentTab = tab;
+            isRegisterMode = false;
             hideError();
 
             const tabCompany = document.getElementById('tabCompany');
             const tabDriver = document.getElementById('tabDriver');
             const formCompany = document.getElementById('formCompany');
+            const formRegister = document.getElementById('formRegister');
             const formDriver = document.getElementById('formDriver');
             const loginCard = document.getElementById('loginCard');
+
+            formRegister.style.display = 'none';
 
             if (tab === 'company') {
                 tabCompany.classList.add('active');
@@ -436,6 +533,48 @@
                 formDriver.style.display = 'block';
                 loginCard.classList.add('tab-driver-active');
                 setTimeout(() => document.getElementById('driverCode').focus(), 50);
+            }
+        }
+
+        async function handleCompanyRegister(e) {
+            e.preventDefault();
+            hideError();
+
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const phone = document.getElementById('regPhone').value.trim();
+            const address = document.getElementById('regAddress').value.trim() || null;
+            const codePrefix = document.getElementById('regPrefix').value.trim() || null;
+            const btn = document.getElementById('btnRegisterSubmit');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Hesap oluşturuluyor...';
+
+            try {
+                const res = await fetch('/api/auth/company/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, phone, address, codePrefix })
+                });
+
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.message || 'Kayıt işlemi başarısız oldu.');
+                }
+
+                // Token ve kullanıcı verilerini sakla
+                localStorage.setItem('hali_token', data.token);
+                localStorage.setItem('hali_user', JSON.stringify(data));
+
+                // Ofis paneline yönlendir
+                window.location.href = '/index.html';
+
+            } catch (err) {
+                showError(err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle"></i> Firma Hesabı Oluştur ve Başla';
             }
         }
 

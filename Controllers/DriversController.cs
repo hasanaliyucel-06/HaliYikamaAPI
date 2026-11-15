@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using HaliYikamaAPI.Data;
@@ -9,10 +10,11 @@ using HaliYikamaAPI.Services.Auth;
 namespace HaliYikamaAPI.Controllers;
 
 /// <summary>
-/// Sürücü yönetimi CRUD API kontrolcüsü.
+/// Sürücü yönetimi CRUD API kontrolcüsü. Yalnızca firma yöneticileri erişebilir.
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "CompanyAdmin")]
 [Produces("application/json")]
 public class DriversController : ControllerBase
 {
@@ -211,10 +213,18 @@ public class DriversController : ControllerBase
 
     private async Task<string> GenerateUniqueAccessCodeAsync(string prefix)
     {
+        var existingCodes = await _context.Drivers
+            .AsNoTracking()
+            .Where(d => d.AccessCode.StartsWith(prefix + "-"))
+            .Select(d => d.AccessCode)
+            .ToListAsync();
+
+        var codeSet = new HashSet<string>(existingCodes, StringComparer.OrdinalIgnoreCase);
+
         for (int i = 101; i < 9999; i++)
         {
             var code = $"{prefix}-{i}";
-            if (!await _context.Drivers.AnyAsync(d => d.AccessCode == code))
+            if (!codeSet.Contains(code))
             {
                 return code;
             }

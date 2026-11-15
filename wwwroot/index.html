@@ -386,8 +386,10 @@
 
         .badge-status.yenitalep { background: var(--clr-status-yenitalep-bg); color: #b45309; }
         .badge-status.alinacak { background: var(--clr-status-alinacak-bg); color: #6d28d9; }
+        .badge-status.islemde { background: #e0f2fe; color: #0284c7; }
         .badge-status.hazir { background: var(--clr-status-hazir-bg); color: #047857; }
         .badge-status.dagitimda { background: var(--clr-status-dagitimda-bg); color: #1d4ed8; }
+        .badge-status.tamamlandi { background: #dcfce7; color: #15803d; }
         .badge-status.iptaledildi { background: #f3f4f6; color: #4b5563; }
 
         .badge-status .pulse-dot {
@@ -399,8 +401,10 @@
 
         .badge-status.yenitalep .pulse-dot { background: #f59e0b; }
         .badge-status.alinacak .pulse-dot { background: #8b5cf6; }
+        .badge-status.islemde .pulse-dot { background: #0284c7; }
         .badge-status.hazir .pulse-dot { background: #10b981; }
         .badge-status.dagitimda .pulse-dot { background: #3b82f6; }
+        .badge-status.tamamlandi .pulse-dot { background: #22c55e; }
         .badge-status.iptaledildi .pulse-dot { background: #9ca3af; }
 
         @keyframes dotPulse {
@@ -836,6 +840,15 @@
             </div>
         </div>
         <div class="stat-card">
+            <div class="stat-icon" style="background:#e0f2fe;color:#0284c7;">
+                <i class="bi bi-gear-fill"></i>
+            </div>
+            <div>
+                <div class="stat-value" id="statIslemde">–</div>
+                <div class="stat-label">Yıkamada / İşlemde</div>
+            </div>
+        </div>
+        <div class="stat-card">
             <div class="stat-icon" style="background:#ecfdf5;color:#10b981;">
                 <i class="bi bi-check-circle-fill"></i>
             </div>
@@ -868,14 +881,14 @@
     <div class="main-content">
         <div class="columns-wrapper">
 
-            <!-- ── LEFT COLUMN: Alınacaklar / Gidilecekler ── -->
+            <!-- ── LEFT COLUMN: Alınacaklar & Yıkamadakiler ── -->
             <div class="column-panel">
                 <div class="column-header">
                     <div class="column-header-left">
                         <div class="column-icon left"><i class="bi bi-box-arrow-in-down"></i></div>
                         <div>
-                            <div class="column-title">Alınacaklar / Gidilecekler</div>
-                            <div class="column-subtitle">Yeni talepler & alınacak siparişler</div>
+                            <div class="column-title">Alınacaklar & Yıkamadakiler</div>
+                            <div class="column-subtitle">Yeni talepler, alınacaklar & fabrikadaki siparişler</div>
                         </div>
                     </div>
                     <span class="column-count left" id="leftCount">0</span>
@@ -1471,7 +1484,7 @@
 
         function renderColumns(orders) {
             const leftOrders = orders.filter(o =>
-                o.status === 'YeniTalep' || o.status === 'Alinacak'
+                o.status === 'YeniTalep' || o.status === 'Alinacak' || o.status === 'Islemde'
             );
             const rightOrders = orders.filter(o =>
                 o.status === 'Hazir' || o.status === 'Dagitimda'
@@ -1485,7 +1498,7 @@
                 leftContainer.innerHTML = `
                     <div class="empty-state">
                         <i class="bi bi-inbox"></i>
-                        <p>Alınacak sipariş bulunmuyor</p>
+                        <p>Alınacak veya işlemde sipariş bulunmuyor</p>
                     </div>`;
             } else {
                 leftContainer.innerHTML = leftOrders.map((o, i) => renderOrderCard(o, i)).join('');
@@ -1508,17 +1521,18 @@
         }
 
         function updateStats(orders) {
-            const counts = { YeniTalep: 0, Alinacak: 0, Hazir: 0, Dagitimda: 0 };
+            const counts = { YeniTalep: 0, Alinacak: 0, Islemde: 0, Hazir: 0, Dagitimda: 0 };
             orders.forEach(o => {
                 if (counts.hasOwnProperty(o.status)) counts[o.status]++;
             });
 
             document.getElementById('statYeniTalep').textContent = counts.YeniTalep;
             document.getElementById('statAlinacak').textContent = counts.Alinacak;
+            document.getElementById('statIslemde').textContent = counts.Islemde;
             document.getElementById('statHazir').textContent = counts.Hazir;
             document.getElementById('statDagitimda').textContent = counts.Dagitimda;
             document.getElementById('statToplam').textContent =
-                counts.YeniTalep + counts.Alinacak + counts.Hazir + counts.Dagitimda;
+                counts.YeniTalep + counts.Alinacak + counts.Islemde + counts.Hazir + counts.Dagitimda;
         }
 
         // ═══════════════════════════════════════════════

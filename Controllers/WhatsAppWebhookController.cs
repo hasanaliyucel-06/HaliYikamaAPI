@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using HaliYikamaAPI.DTOs.WhatsApp;
@@ -13,6 +14,7 @@ namespace HaliYikamaAPI.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/whatsapp/webhook")]
+[AllowAnonymous]
 public class WhatsAppWebhookController : ControllerBase
 {
     private readonly WhatsAppSettings _settings;

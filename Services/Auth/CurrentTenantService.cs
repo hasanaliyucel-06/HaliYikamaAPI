@@ -45,8 +45,8 @@ public class CurrentTenantService : ICurrentTenantService
                 return companyId;
             }
 
-            // Giriş yapılmamışsa (örn. WhatsApp Webhook üzerinden gelen yeni siparişler için) varsayılan firma
-            return ApplicationDbContext.DefaultCompanyId;
+            // Giriş yapılmamışsa veya yetkisiz istekte veri sızmasını önlemek için Empty dön
+            return Guid.Empty;
         }
     }
 
