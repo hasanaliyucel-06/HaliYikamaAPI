@@ -25,9 +25,11 @@ public class CreateOrderDto
 
     /// <summary>Hizmet türü (0: Hali, 1: Koltuk)</summary>
     [Required(ErrorMessage = "Hizmet türü zorunludur.")]
+    [EnumDataType(typeof(ServiceType), ErrorMessage = "Geçerli bir hizmet türü seçiniz.")]
     public ServiceType ServiceType { get; set; }
 
     /// <summary>Halı adedi (opsiyonel)</summary>
+    [Range(1, 1000, ErrorMessage = "Halı adedi 1 ile 1000 arasında olmalıdır.")]
     public int? CarpetCount { get; set; }
 
     /// <summary>Fiş/makbuz numarası (opsiyonel)</summary>
@@ -67,9 +69,11 @@ public class UpdateOrderDto
 
     /// <summary>Hizmet türü (0: Hali, 1: Koltuk)</summary>
     [Required(ErrorMessage = "Hizmet türü zorunludur.")]
+    [EnumDataType(typeof(ServiceType), ErrorMessage = "Geçerli bir hizmet türü seçiniz.")]
     public ServiceType ServiceType { get; set; }
 
     /// <summary>Halı adedi (opsiyonel)</summary>
+    [Range(1, 1000, ErrorMessage = "Halı adedi 1 ile 1000 arasında olmalıdır.")]
     public int? CarpetCount { get; set; }
 
     /// <summary>Fiş/makbuz numarası (opsiyonel)</summary>
@@ -88,6 +92,7 @@ public class UpdateOrderDto
 
     /// <summary>Sipariş durumu</summary>
     [Required(ErrorMessage = "Sipariş durumu zorunludur.")]
+    [EnumDataType(typeof(OrderStatus), ErrorMessage = "Geçerli bir sipariş durumu seçiniz.")]
     public OrderStatus Status { get; set; }
 }
 
@@ -98,6 +103,7 @@ public class UpdateOrderStatusDto
 {
     /// <summary>Yeni sipariş durumu</summary>
     [Required(ErrorMessage = "Sipariş durumu zorunludur.")]
+    [EnumDataType(typeof(OrderStatus), ErrorMessage = "Geçerli bir sipariş durumu seçiniz.")]
     public OrderStatus Status { get; set; }
 }
 

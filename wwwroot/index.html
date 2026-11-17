@@ -657,25 +657,6 @@
             box-shadow: 0 0 0 3px rgba(139,92,246,.12);
         }
 
-        .modal-order-info {
-            background: var(--clr-bg);
-            border-radius: var(--radius-md);
-            padding: 16px;
-            margin-bottom: 20px;
-        }
-
-        .modal-order-info .info-row {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: .85rem;
-            margin-bottom: 6px;
-        }
-
-        .modal-order-info .info-row:last-child { margin-bottom: 0; }
-        .modal-order-info .info-row i { color: var(--clr-text-muted); width: 18px; text-align: center; }
-        .modal-order-info .info-row strong { color: var(--clr-text-primary); }
-
         .btn-save {
             background: linear-gradient(135deg, #8b5cf6, #6d28d9);
             border: none;
@@ -772,11 +753,108 @@
             animation: cardSlideIn var(--transition-normal) ease-out both;
         }
 
+        /* ───────── Filter & View Toolbar ───────── */
+        .toolbar-bar {
+            padding: 0 2rem 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .view-tabs {
+            display: inline-flex;
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-sm);
+            padding: 3px;
+            gap: 4px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .view-tab-btn {
+            border: none;
+            background: transparent;
+            color: var(--clr-text-secondary);
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: .82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: all var(--transition-fast);
+        }
+
+        .view-tab-btn.active {
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            color: #fff;
+        }
+
+        .filter-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            justify-content: flex-end;
+        }
+
+        .filter-search {
+            position: relative;
+            min-width: 240px;
+            max-width: 320px;
+            flex: 1;
+        }
+
+        .filter-search i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--clr-text-muted);
+            font-size: .85rem;
+            pointer-events: none;
+        }
+
+        .filter-search input {
+            padding-left: 34px;
+            height: 38px;
+            font-size: .85rem;
+        }
+
+        .filter-select {
+            width: auto;
+            min-width: 155px;
+            height: 38px;
+            padding: 4px 30px 4px 12px;
+            font-size: .85rem;
+        }
+
+        .archive-panel {
+            background: var(--clr-surface);
+            border: 1px solid var(--clr-border);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-sm);
+            overflow: hidden;
+        }
+
+        .archive-summary {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-size: .85rem;
+            color: var(--clr-text-secondary);
+        }
+
         /* ───────── Responsive ───────── */
         @media (max-width: 992px) {
             .columns-wrapper { grid-template-columns: 1fr; }
             .top-navbar { padding: 0 1rem; }
             .stats-bar { padding: 1rem; }
+            .toolbar-bar { padding: 0 1rem 1rem; }
             .main-content { padding: 0 1rem 1rem; }
         }
     </style>
@@ -796,7 +874,7 @@
             </span>
         </div>
         <div class="navbar-actions">
-            <button class="btn-navbar" onclick="loadOrders()" title="Yenile">
+            <button class="btn-navbar" onclick="refreshCurrentView()" title="Yenile">
                 <i class="bi bi-arrow-clockwise"></i>
                 Yenile
             </button>
@@ -804,7 +882,11 @@
                 <i class="bi bi-people-fill"></i>
                 Sürücüler
             </button>
-            <a href="/driver.html" target="_blank" class="btn-navbar" title="Sürücü Ekranını Yeni Sekmede Aç">
+            <button class="btn-navbar" onclick="openCompanySettings()" title="Firma Ayarları ve Şifre">
+                <i class="bi bi-gear-fill"></i>
+                Ayarlar
+            </button>
+            <a href="/login.html?role=driver" target="_blank" class="btn-navbar" title="Sürücü Giriş Ekranını Yeni Sekmede Aç">
                 <i class="bi bi-truck"></i>
                 Sürücü Ekranı
             </a>
@@ -877,9 +959,36 @@
         </div>
     </div>
 
+    <!-- ═══════ FILTER & VIEW TOOLBAR ═══════ -->
+    <div class="toolbar-bar">
+        <div class="view-tabs">
+            <button class="view-tab-btn active" id="btnViewActive" onclick="switchView('active')">
+                <i class="bi bi-kanban"></i> Aktif Görevler
+            </button>
+            <button class="view-tab-btn" id="btnViewArchive" onclick="switchView('archive')">
+                <i class="bi bi-archive"></i> Geçmiş / Arşiv
+            </button>
+        </div>
+        <div class="filter-controls">
+            <div class="filter-search">
+                <i class="bi bi-search"></i>
+                <input type="text" id="filterSearch" class="form-control" placeholder="Ad, telefon, adres veya fiş ara..." oninput="applyFilters()">
+            </div>
+            <select class="form-select filter-select" id="filterDriverId" onchange="applyFilters()">
+                <option value="">Tüm Sürücüler</option>
+                <option value="__unassigned__">Sürücü Atanmamış</option>
+            </select>
+            <select class="form-select filter-select" id="filterServiceType" onchange="applyFilters()">
+                <option value="">Tüm Hizmetler</option>
+                <option value="Hali">Halı Yıkama</option>
+                <option value="Koltuk">Koltuk Yıkama</option>
+            </select>
+        </div>
+    </div>
+
     <!-- ═══════ MAIN COLUMNS ═══════ -->
     <div class="main-content">
-        <div class="columns-wrapper">
+        <div class="columns-wrapper" id="activeView">
 
             <!-- ── LEFT COLUMN: Alınacaklar & Yıkamadakiler ── -->
             <div class="column-panel">
@@ -934,6 +1043,47 @@
                 </div>
             </div>
         </div>
+
+        <!-- ═══════ ARCHIVE VIEW (Tamamlanan & İptal Edilenler) ═══════ -->
+        <div class="archive-panel" id="archiveView" style="display: none;">
+            <div class="column-header">
+                <div class="column-header-left">
+                    <div class="column-icon right" style="background:linear-gradient(135deg,#64748b,#475569);"><i class="bi bi-archive-fill"></i></div>
+                    <div>
+                        <div class="column-title">Sipariş Arşivi</div>
+                        <div class="column-subtitle">Tamamlanan ve iptal edilen geçmiş siparişler</div>
+                    </div>
+                </div>
+                <div class="archive-summary">
+                    <span>Kayıt: <strong id="archiveCount">0</strong></span>
+                    <span>Tamamlanan Ciro: <strong id="archiveRevenue" style="color:#059669;">0,00 ₺</strong></span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Tarih</th>
+                            <th>Müşteri</th>
+                            <th>Hizmet</th>
+                            <th>Sürücü</th>
+                            <th>Fiş No</th>
+                            <th>Tutar</th>
+                            <th>Durum</th>
+                            <th>İşlem</th>
+                        </tr>
+                    </thead>
+                    <tbody id="archiveTableBody">
+                        <tr><td colspan="8" class="text-center text-muted py-4">Yükleniyor...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center p-3 border-top" id="archiveLoadMoreWrap" style="display: none;">
+                <button type="button" class="btn btn-outline-secondary btn-sm" id="btnArchiveLoadMore" onclick="loadMoreArchiveOrders()">
+                    <i class="bi bi-arrow-down-circle me-1"></i>Daha Fazla Yükle
+                </button>
+            </div>
+        </div>
     </div>
 
     <!-- ═══════ EDIT MODAL ═══════ -->
@@ -950,84 +1100,111 @@
                 <div class="modal-body">
                     <input type="hidden" id="editOrderId">
 
-                    <!-- Order summary -->
-                    <div class="modal-order-info">
-                        <div class="info-row" id="editInfoNameRow" style="display:none;">
-                            <i class="bi bi-person-fill"></i>
-                            <strong id="editInfoName">–</strong>
+                    <div class="alert alert-secondary py-2 px-3 mb-3 small" id="editLockedBanner" style="display:none;">
+                        <i class="bi bi-lock-fill me-1"></i>
+                        Bu sipariş tamamlandığı veya iptal edildiği için düzenlemeye kilitlidir.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editCustomerName" class="form-label">
+                                <i class="bi bi-person me-1"></i>Müşteri Adı
+                            </label>
+                            <input type="text" class="form-control" id="editCustomerName" placeholder="Müşteri adı...">
                         </div>
-                        <div class="info-row">
-                            <i class="bi bi-telephone-fill"></i>
-                            <strong id="editInfoPhone">–</strong>
-                        </div>
-                        <div class="info-row">
-                            <i class="bi bi-geo-alt-fill"></i>
-                            <span id="editInfoAddress">–</span>
-                        </div>
-                        <div class="info-row">
-                            <i class="bi bi-tag-fill"></i>
-                            <span id="editInfoService">–</span>
+                        <div class="col-md-6 mb-3">
+                            <label for="editCustomerPhone" class="form-label">
+                                <i class="bi bi-telephone me-1"></i>Telefon Numarası
+                            </label>
+                            <input type="tel" class="form-control" id="editCustomerPhone" placeholder="05XX XXX XX XX" required>
                         </div>
                     </div>
 
-                    <!-- Customer Name -->
                     <div class="mb-3">
-                        <label for="editCustomerName" class="form-label">
-                            <i class="bi bi-person me-1"></i>Müşteri Adı
+                        <label for="editCustomerAddress" class="form-label">
+                            <i class="bi bi-geo-alt me-1"></i>Adres
                         </label>
-                        <input type="text" class="form-control" id="editCustomerName" placeholder="Müşteri adı...">
+                        <textarea class="form-control" id="editCustomerAddress" rows="2" placeholder="Müşteri adresi..." required></textarea>
                     </div>
 
-                    <!-- Receipt Number -->
-                    <div class="mb-3">
-                        <label for="editReceiptNumber" class="form-label">
-                            <i class="bi bi-receipt-cutoff me-1"></i>Fiş Numarası
-                        </label>
-                        <input type="text" class="form-control" id="editReceiptNumber" placeholder="Fiş numarası giriniz...">
-                    </div>
-
-                    <!-- Total Price -->
-                    <div class="mb-3">
-                        <label for="editTotalPrice" class="form-label">
-                            <i class="bi bi-currency-lira me-1"></i>Toplam Fiyat
-                        </label>
-                        <div class="input-group">
-                            <input type="number" step="0.01" min="0" class="form-control" id="editTotalPrice" placeholder="0.00">
-                            <span class="input-group-text" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-color:var(--clr-border);">₺</span>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editServiceType" class="form-label">
+                                <i class="bi bi-tag me-1"></i>Hizmet Türü
+                            </label>
+                            <select class="form-select" id="editServiceType" onchange="toggleEditCarpetCount()">
+                                <option value="Hali">🟩 Halı</option>
+                                <option value="Koltuk">🟦 Koltuk</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3" id="editCarpetCountGroup">
+                            <label for="editCarpetCount" class="form-label">
+                                <i class="bi bi-layers me-1"></i>Halı Adedi
+                            </label>
+                            <input type="number" min="1" max="1000" class="form-control" id="editCarpetCount" placeholder="1">
                         </div>
                     </div>
 
-                    <!-- Driver Assignment -->
-                    <div class="mb-3">
-                        <label for="editDriverId" class="form-label">
-                            <i class="bi bi-truck me-1"></i>Atanan Sürücü
-                        </label>
-                        <select class="form-select" id="editDriverId">
-                            <option value="">Atanmadı (Boşta)</option>
-                        </select>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editReceiptNumber" class="form-label">
+                                <i class="bi bi-receipt-cutoff me-1"></i>Fiş Numarası
+                            </label>
+                            <input type="text" class="form-control" id="editReceiptNumber" placeholder="Fiş no...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editTotalPrice" class="form-label">
+                                <i class="bi bi-currency-lira me-1"></i>Toplam Fiyat
+                            </label>
+                            <div class="input-group">
+                                <input type="number" step="0.01" min="0" class="form-control" id="editTotalPrice" placeholder="0.00">
+                                <span class="input-group-text" style="border-radius:0 var(--radius-sm) var(--radius-sm) 0;border-color:var(--clr-border);">₺</span>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Status -->
-                    <div class="mb-0">
-                        <label for="editStatus" class="form-label">
-                            <i class="bi bi-arrow-repeat me-1"></i>Durum
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editDriverId" class="form-label">
+                                <i class="bi bi-truck me-1"></i>Atanan Sürücü
+                            </label>
+                            <select class="form-select" id="editDriverId">
+                                <option value="">Atanmadı (Boşta)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editStatus" class="form-label">
+                                <i class="bi bi-arrow-repeat me-1"></i>Durum
+                            </label>
+                            <select class="form-select" id="editStatus">
+                                <option value="YeniTalep">🟡 Yeni Talep</option>
+                                <option value="Alinacak">🟣 Alınacak</option>
+                                <option value="Islemde">🔵 İşlemde</option>
+                                <option value="Hazir">🟢 Hazır</option>
+                                <option value="Dagitimda">📦 Dağıtımda</option>
+                                <option value="Tamamlandi">✅ Tamamlandı</option>
+                                <option value="IptalEdildi">⚪ İptal Edildi</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-0 form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="editRequiresPOS" style="width:2.5em;height:1.25em;">
+                        <label class="form-check-label fw-semibold" for="editRequiresPOS" style="font-size:.88rem;">
+                            <i class="bi bi-credit-card me-1"></i>POS Cihazı Gerekli
                         </label>
-                        <select class="form-select" id="editStatus">
-                            <option value="YeniTalep">🟡 Yeni Talep</option>
-                            <option value="Alinacak">🟣 Alınacak</option>
-                            <option value="Islemde">🔵 İşlemde</option>
-                            <option value="Hazir">🟢 Hazır</option>
-                            <option value="Dagitimda">📦 Dağıtımda</option>
-                            <option value="Tamamlandi">✅ Tamamlandı</option>
-                            <option value="IptalEdildi">⚪ İptal Edildi</option>
-                        </select>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">İptal</button>
-                    <button type="button" class="btn btn-save" onclick="saveOrder()" id="btnSave">
-                        <i class="bi bi-check2-circle me-1"></i>Kaydet
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteCurrentOrder()" id="btnDeleteOrder">
+                        <i class="bi bi-trash me-1"></i>Siparişi Sil
                     </button>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-cancel" data-bs-dismiss="modal">İptal</button>
+                        <button type="button" class="btn btn-save" onclick="saveOrder()" id="btnSave">
+                            <i class="bi bi-check2-circle me-1"></i>Kaydet
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1068,16 +1245,16 @@
                             <label for="newServiceType" class="form-label">
                                 <i class="bi bi-tag me-1"></i>Hizmet Türü
                             </label>
-                            <select class="form-select" id="newServiceType">
+                            <select class="form-select" id="newServiceType" onchange="toggleNewCarpetCount()">
                                 <option value="Hali">🟩 Halı</option>
                                 <option value="Koltuk">🟦 Koltuk</option>
                             </select>
                         </div>
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-6 mb-3" id="newCarpetCountGroup">
                             <label for="newCarpetCount" class="form-label">
                                 <i class="bi bi-layers me-1"></i>Halı Adedi
                             </label>
-                            <input type="number" min="0" class="form-control" id="newCarpetCount" placeholder="0">
+                            <input type="number" min="1" max="1000" class="form-control" id="newCarpetCount" placeholder="1">
                         </div>
                     </div>
                     <div class="mb-3">
@@ -1117,12 +1294,18 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
                 </div>
                 <div class="modal-body">
-                    <!-- Yeni Sürücü Ekle Formu -->
+                    <!-- Yeni Sürücü Ekle / Düzenle Formu -->
                     <div class="card p-3 mb-4" style="background:var(--clr-bg);border:1px solid var(--clr-border);border-radius:var(--radius-md);">
-                        <h6 class="fw-bold mb-3" style="color:var(--clr-text-primary);">
-                            <i class="bi bi-person-plus-fill me-1 text-primary"></i> Yeni Sürücü Tanımla
-                        </h6>
-                        <form id="newDriverForm" onsubmit="handleCreateDriver(event)" class="row g-2">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0" style="color:var(--clr-text-primary);" id="driverFormTitle">
+                                <i class="bi bi-person-plus-fill me-1 text-primary"></i> Yeni Sürücü Tanımla
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCancelEditDriver" style="display:none;" onclick="cancelEditDriver()">
+                                Vazgeç
+                            </button>
+                        </div>
+                        <form id="newDriverForm" onsubmit="handleSaveDriver(event)" class="row g-2">
+                            <input type="hidden" id="editingDriverId">
                             <div class="col-md-4">
                                 <input type="text" id="driverFullName" class="form-control" placeholder="Ad Soyad" required>
                             </div>
@@ -1166,6 +1349,91 @@
         </div>
     </div>
 
+    <!-- ═══════ COMPANY SETTINGS MODAL ═══════ -->
+    <div class="modal fade" id="companySettingsModal" tabindex="-1" aria-labelledby="companySettingsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="companySettingsModalLabel">
+                        <span class="title-icon"><i class="bi bi-gear-fill"></i></span>
+                        Firma Ayarları
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <ul class="nav nav-pills nav-fill mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="tabProfileBtn" data-bs-toggle="pill" data-bs-target="#tabProfilePane" type="button">
+                                <i class="bi bi-building me-1"></i>Profil & WhatsApp
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="tabPasswordBtn" data-bs-toggle="pill" data-bs-target="#tabPasswordPane" type="button">
+                                <i class="bi bi-shield-lock me-1"></i>Şifre Değiştir
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="tabProfilePane">
+                            <form id="companyProfileForm" onsubmit="saveCompanyProfile(event)">
+                                <div class="mb-3">
+                                    <label class="form-label">Firma Adı</label>
+                                    <input type="text" id="profName" class="form-control" required minlength="2" maxlength="100">
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">E-Posta</label>
+                                        <input type="email" id="profEmail" class="form-control" disabled>
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label class="form-label">Kod Öneki</label>
+                                        <input type="text" id="profPrefix" class="form-control" disabled>
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">İletişim Telefonu</label>
+                                    <input type="tel" id="profPhone" class="form-control" required maxlength="20">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Adres</label>
+                                    <input type="text" id="profAddress" class="form-control" maxlength="250">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">WhatsApp Phone Number ID (Opsiyonel)</label>
+                                    <input type="text" id="profWaPhoneId" class="form-control" maxlength="50" placeholder="Meta Business Phone Number ID">
+                                </div>
+                                <button type="submit" class="btn btn-save w-100" id="btnSaveProfile">
+                                    <i class="bi bi-check2-circle me-1"></i>Bilgileri Kaydet
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="tab-pane fade" id="tabPasswordPane">
+                            <form id="changePasswordForm" onsubmit="changeCompanyPassword(event)">
+                                <div class="mb-3">
+                                    <label class="form-label">Mevcut Şifre</label>
+                                    <input type="password" id="pwdCurrent" class="form-control" required autocomplete="current-password">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Yeni Şifre (En az 6 karakter)</label>
+                                    <input type="password" id="pwdNew" class="form-control" required minlength="6" autocomplete="new-password">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Yeni Şifre (Tekrar)</label>
+                                    <input type="password" id="pwdConfirm" class="form-control" required minlength="6" autocomplete="new-password">
+                                </div>
+                                <button type="submit" class="btn btn-save w-100" id="btnChangePassword">
+                                    <i class="bi bi-key me-1"></i>Şifreyi Güncelle
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- ═══════ TOAST ═══════ -->
     <div class="toast-container">
         <div id="appToast" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
@@ -1184,16 +1452,23 @@
         //  Auth & Tenant Guard
         // ═══════════════════════════════════════════════
 
-        const token = localStorage.getItem('hali_token');
-        const currentUser = JSON.parse(localStorage.getItem('hali_user') || 'null');
+        const token = localStorage.getItem('hali_admin_token');
+        let currentUser = null;
+        try {
+            currentUser = JSON.parse(localStorage.getItem('hali_admin_user') || 'null');
+        } catch {
+            localStorage.removeItem('hali_admin_token');
+            localStorage.removeItem('hali_admin_user');
+        }
 
-        if (!token || !currentUser || currentUser.role !== 'CompanyAdmin') {
+        const isAuthorized = Boolean(token && currentUser && currentUser.role === 'CompanyAdmin');
+        if (!isAuthorized) {
             window.location.href = '/login.html';
         }
 
         function logout() {
-            localStorage.removeItem('hali_token');
-            localStorage.removeItem('hali_user');
+            localStorage.removeItem('hali_admin_token');
+            localStorage.removeItem('hali_admin_user');
             window.location.href = '/login.html';
         }
 
@@ -1204,16 +1479,38 @@
             };
         }
 
+        async function extractApiError(response, fallbackMessage) {
+            const text = await response.text().catch(() => '');
+            if (!text) return fallbackMessage;
+            try {
+                const err = JSON.parse(text);
+                if (err.message) return err.message;
+                if (err.errors && typeof err.errors === 'object') {
+                    const firstKey = Object.keys(err.errors)[0];
+                    const firstVal = firstKey ? err.errors[firstKey] : null;
+                    if (Array.isArray(firstVal) && firstVal.length > 0) return firstVal[0];
+                }
+                if (err.title) return err.title;
+            } catch {
+                // Non-JSON yanıt
+            }
+            return fallbackMessage;
+        }
+
         // ═══════════════════════════════════════════════
         //  Constants & State
         // ═══════════════════════════════════════════════
 
         const API_BASE = '/api/orders';
         let allOrders = [];
+        let archiveOrders = [];
+        let archivePage = 1;
+        let archiveHasMore = false;
         let allDrivers = [];
+        let currentView = 'active';
         let editModalInstance = null;
         let newOrderModalInstance = null;
-        let driversModalInstance = null;
+        let companySettingsModalInstance = null;
 
         const STATUS_LABELS = {
             YeniTalep: 'Yeni Talep',
@@ -1235,12 +1532,14 @@
         // ═══════════════════════════════════════════════
 
         async function fetchOrders() {
-            const response = await fetch(API_BASE, { headers: getAuthHeaders() });
+            const response = await fetch(`${API_BASE}?activeOnly=true`, { headers: getAuthHeaders() });
             if (response.status === 401) {
                 logout();
                 return [];
             }
-            if (!response.ok) throw new Error(`API Hatası: ${response.status}`);
+            if (!response.ok) {
+                throw new Error(await extractApiError(response, `API Hatası: ${response.status}`));
+            }
             return await response.json();
         }
 
@@ -1255,8 +1554,7 @@
                 throw new Error('Oturum süresi doldu.');
             }
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.message || `Güncelleme hatası: ${response.status}`);
+                throw new Error(await extractApiError(response, `Güncelleme hatası: ${response.status}`));
             }
             return await response.json();
         }
@@ -1272,10 +1570,23 @@
                 throw new Error('Oturum süresi doldu.');
             }
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.message || `Oluşturma hatası: ${response.status}`);
+                throw new Error(await extractApiError(response, `Oluşturma hatası: ${response.status}`));
             }
             return await response.json();
+        }
+
+        async function deleteOrderAPI(id) {
+            const response = await fetch(`${API_BASE}/${id}`, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            if (response.status === 401) {
+                logout();
+                throw new Error('Oturum süresi doldu.');
+            }
+            if (!response.ok) {
+                throw new Error(await extractApiError(response, `Silme hatası: ${response.status}`));
+            }
         }
 
         // ═══════════════════════════════════════════════
@@ -1296,14 +1607,46 @@
         }
 
         function updateDriverSelects() {
+            const editModalEl = document.getElementById('editModal');
+            const newOrderModalEl = document.getElementById('newOrderModal');
             const editSelect = document.getElementById('editDriverId');
             const newSelect = document.getElementById('newDriverId');
+            const filterSelect = document.getElementById('filterDriverId');
 
-            const optionsHtml = '<option value="">Atanmadı (Boşta)</option>' +
-                allDrivers.filter(d => d.isActive).map(d => `<option value="${d.id}">${escapeHtml(d.fullName)} (${d.accessCode})</option>`).join('');
+            const activeOptions = allDrivers
+                .filter(d => d.isActive)
+                .map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.fullName)} (${escapeHtml(d.accessCode)})</option>`)
+                .join('');
 
-            if (editSelect) editSelect.innerHTML = optionsHtml;
-            if (newSelect) newSelect.innerHTML = optionsHtml;
+            const modalOptionsHtml = '<option value="">Atanmadı (Boşta)</option>' + activeOptions;
+
+            // Modal açıkken kullanıcının yaptığı sürücü seçimini asla sıfırlama
+            if (editSelect && (!editModalEl || !editModalEl.classList.contains('show'))) {
+                const prev = editSelect.value;
+                editSelect.innerHTML = modalOptionsHtml;
+                if (prev && Array.from(editSelect.options).some(o => o.value === prev)) {
+                    editSelect.value = prev;
+                }
+            }
+            if (newSelect && (!newOrderModalEl || !newOrderModalEl.classList.contains('show'))) {
+                const prev = newSelect.value;
+                newSelect.innerHTML = modalOptionsHtml;
+                if (prev && Array.from(newSelect.options).some(o => o.value === prev)) {
+                    newSelect.value = prev;
+                }
+            }
+
+            // Filtre dropdown'ını tüm sürücülerle güncelle ve mevcut seçimi koru
+            if (filterSelect) {
+                const prevFilter = filterSelect.value;
+                const allDriverOpts = allDrivers
+                    .map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.fullName)}${d.isActive ? '' : ' (Pasif)'}</option>`)
+                    .join('');
+                filterSelect.innerHTML = '<option value="">Tüm Sürücüler</option><option value="__unassigned__">Sürücü Atanmamış</option>' + allDriverOpts;
+                if (prevFilter && Array.from(filterSelect.options).some(o => o.value === prevFilter)) {
+                    filterSelect.value = prevFilter;
+                }
+            }
         }
 
         function renderDriversTable() {
@@ -1321,26 +1664,54 @@
                         <strong>${escapeHtml(d.fullName)}</strong>
                         ${d.isActive ? '<span class="badge bg-success-subtle text-success ms-1">Aktif</span>' : '<span class="badge bg-danger-subtle text-danger ms-1">Pasif</span>'}
                     </td>
-                    <td><a href="tel:${d.phone}" class="text-decoration-none">${d.phone}</a></td>
+                    <td><a href="tel:${sanitizeTel(d.phone)}" class="text-decoration-none">${escapeHtml(d.phone)}</a></td>
                     <td>${d.vehiclePlate ? escapeHtml(d.vehiclePlate) : '<span class="text-muted">–</span>'}</td>
                     <td>
-                        <span class="driver-code-pill" onclick="copyToClipboard('${d.accessCode}')" title="Kopyalamak için tıkla">
-                            ${d.accessCode} <i class="bi bi-clipboard"></i>
+                        <span class="driver-code-pill" onclick="copyDriverCode('${escapeHtml(d.id)}')" title="Kopyalamak için tıkla">
+                            ${escapeHtml(d.accessCode)} <i class="bi bi-clipboard"></i>
                         </span>
                     </td>
-                    <td><span class="badge bg-primary-subtle text-primary">${d.activeOrderCount} sipariş</span></td>
+                    <td><span class="badge bg-primary-subtle text-primary">${Number(d.activeOrderCount) || 0} sipariş</span></td>
                     <td>
-                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleDriverActive('${d.id}', ${!d.isActive})">
-                            ${d.isActive ? 'Pasife Al' : 'Aktif Et'}
-                        </button>
+                        <div class="d-flex gap-1">
+                            <button class="btn btn-sm btn-outline-primary" onclick="startEditDriver('${escapeHtml(d.id)}')" title="Düzenle">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="toggleDriverActive('${escapeHtml(d.id)}', ${!d.isActive})">
+                                ${d.isActive ? 'Pasife Al' : 'Aktif Et'}
+                            </button>
+                        </div>
                     </td>
                 </tr>
             `).join('');
         }
 
-        async function handleCreateDriver(e) {
+        function startEditDriver(driverId) {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+
+            document.getElementById('editingDriverId').value = driver.id;
+            document.getElementById('driverFullName').value = driver.fullName;
+            document.getElementById('driverPhone').value = driver.phone;
+            document.getElementById('driverPlate').value = driver.vehiclePlate || '';
+            document.getElementById('driverFormTitle').innerHTML = '<i class="bi bi-pencil-square me-1 text-primary"></i> Sürücü Bilgilerini Düzenle';
+            document.getElementById('btnSaveDriver').innerHTML = '<i class="bi bi-check-lg me-1"></i> Kaydet';
+            document.getElementById('btnCancelEditDriver').style.display = 'inline-block';
+            document.getElementById('driverFullName').focus();
+        }
+
+        function cancelEditDriver() {
+            document.getElementById('editingDriverId').value = '';
+            document.getElementById('newDriverForm').reset();
+            document.getElementById('driverFormTitle').innerHTML = '<i class="bi bi-person-plus-fill me-1 text-primary"></i> Yeni Sürücü Tanımla';
+            document.getElementById('btnSaveDriver').innerHTML = '<i class="bi bi-plus-lg me-1"></i> Ekle';
+            document.getElementById('btnCancelEditDriver').style.display = 'none';
+        }
+
+        async function handleSaveDriver(e) {
             e.preventDefault();
             const btn = document.getElementById('btnSaveDriver');
+            const editingId = document.getElementById('editingDriverId').value;
             const fullName = document.getElementById('driverFullName').value.trim();
             const phone = document.getElementById('driverPhone').value.trim();
             const vehiclePlate = document.getElementById('driverPlate').value.trim() || null;
@@ -1349,25 +1720,42 @@
             btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
 
             try {
-                const res = await fetch('/api/drivers', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify({ fullName, phone, vehiclePlate })
-                });
-
-                if (!res.ok) {
-                    const err = await res.json().catch(() => ({}));
-                    throw new Error(err.message || 'Sürücü eklenemedi');
+                let res;
+                if (editingId) {
+                    const existing = allDrivers.find(d => d.id === editingId);
+                    res = await fetch(`/api/drivers/${editingId}`, {
+                        method: 'PUT',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({
+                            fullName,
+                            phone,
+                            vehiclePlate,
+                            isActive: existing ? existing.isActive : true
+                        })
+                    });
+                } else {
+                    res = await fetch('/api/drivers', {
+                        method: 'POST',
+                        headers: getAuthHeaders(),
+                        body: JSON.stringify({ fullName, phone, vehiclePlate })
+                    });
                 }
 
-                showToast('Yeni sürücü başarıyla eklendi!', 'success');
-                document.getElementById('newDriverForm').reset();
+                if (res.status === 401) { logout(); return; }
+                if (!res.ok) {
+                    throw new Error(await extractApiError(res, editingId ? 'Sürücü güncellenemedi.' : 'Sürücü eklenemedi.'));
+                }
+
+                showToast(editingId ? 'Sürücü bilgileri güncellendi!' : 'Yeni sürücü başarıyla eklendi!', 'success');
+                cancelEditDriver();
                 await loadDrivers();
             } catch (err) {
                 showToast(`Hata: ${err.message}`, 'error');
+                btn.innerHTML = editingId
+                    ? '<i class="bi bi-check-lg me-1"></i> Kaydet'
+                    : '<i class="bi bi-plus-lg me-1"></i> Ekle';
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i> Ekle';
             }
         }
 
@@ -1387,12 +1775,19 @@
                     })
                 });
 
-                if (!res.ok) throw new Error('Durum güncellenemedi');
+                if (res.status === 401) { logout(); return; }
+                if (!res.ok) throw new Error(await extractApiError(res, 'Durum güncellenemedi.'));
                 showToast(`Sürücü durumu güncellendi.`, 'success');
                 await loadDrivers();
             } catch (err) {
                 showToast(`Hata: ${err.message}`, 'error');
             }
+        }
+
+        function copyDriverCode(driverId) {
+            const driver = allDrivers.find(d => d.id === driverId);
+            if (!driver) return;
+            copyToClipboard(driver.accessCode);
         }
 
         function copyToClipboard(text) {
@@ -1439,7 +1834,7 @@
                             ${driverBadge}
                             ${order.requiresPOS ? '<span class="badge-pos"><i class="bi bi-credit-card-2-front"></i> POS</span>' : ''}
                         </div>
-                        <button class="btn-edit" onclick='openEditModal(${JSON.stringify(order).replace(/'/g, "&#39;")})'>
+                        <button class="btn-edit" onclick="openEditModalById('${escapeHtml(order.id)}')">
                             <i class="bi bi-pencil-square"></i>
                             Düzenle
                         </button>
@@ -1535,34 +1930,223 @@
                 counts.YeniTalep + counts.Alinacak + counts.Islemde + counts.Hazir + counts.Dagitimda;
         }
 
+        function filterOrderList(list) {
+            const term = (document.getElementById('filterSearch')?.value || '').trim().toLowerCase();
+            const driverFilter = document.getElementById('filterDriverId')?.value || '';
+            const serviceFilter = document.getElementById('filterServiceType')?.value || '';
+
+            return list.filter(o => {
+                if (serviceFilter && o.serviceType !== serviceFilter) return false;
+                if (driverFilter === '__unassigned__' && o.driverId != null) return false;
+                if (driverFilter && driverFilter !== '__unassigned__' && o.driverId !== driverFilter) return false;
+                if (term) {
+                    const haystack = [
+                        o.customerName || '',
+                        o.customerPhone || '',
+                        o.customerAddress || '',
+                        o.receiptNumber || '',
+                        o.driverName || ''
+                    ].join(' ').toLowerCase();
+                    if (!haystack.includes(term)) return false;
+                }
+                return true;
+            });
+        }
+
+        function applyFilters() {
+            if (currentView === 'active') {
+                renderColumns(filterOrderList(allOrders));
+            } else {
+                renderArchiveTable(filterOrderList(archiveOrders));
+            }
+        }
+
+        function switchView(view) {
+            currentView = view;
+            document.getElementById('btnViewActive').classList.toggle('active', view === 'active');
+            document.getElementById('btnViewArchive').classList.toggle('active', view === 'archive');
+            document.getElementById('activeView').style.display = view === 'active' ? 'grid' : 'none';
+            document.getElementById('archiveView').style.display = view === 'archive' ? 'block' : 'none';
+
+            if (view === 'archive') {
+                loadArchiveOrders();
+            } else {
+                applyFilters();
+            }
+        }
+
+        async function loadArchiveOrders(reset = true) {
+            const tbody = document.getElementById('archiveTableBody');
+            const loadMoreWrap = document.getElementById('archiveLoadMoreWrap');
+            if (reset) {
+                archivePage = 1;
+                archiveOrders = [];
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Yükleniyor...</td></tr>';
+            }
+
+            const pageSize = 50;
+            try {
+                const [doneRes, cancelRes] = await Promise.all([
+                    fetch(`${API_BASE}?status=Tamamlandi&page=${archivePage}&pageSize=${pageSize}`, { headers: getAuthHeaders() }),
+                    fetch(`${API_BASE}?status=IptalEdildi&page=${archivePage}&pageSize=${pageSize}`, { headers: getAuthHeaders() })
+                ]);
+
+                if (doneRes.status === 401 || cancelRes.status === 401) { logout(); return; }
+                if (!doneRes.ok || !cancelRes.ok) throw new Error('Arşiv yüklenemedi.');
+
+                const doneTotal = parseInt(doneRes.headers.get('X-Total-Count') || '0', 10);
+                const cancelTotal = parseInt(cancelRes.headers.get('X-Total-Count') || '0', 10);
+                const done = await doneRes.json();
+                const cancelled = await cancelRes.json();
+
+                const existingIds = new Set(archiveOrders.map(o => o.id));
+                [...done, ...cancelled].forEach(o => {
+                    if (!existingIds.has(o.id)) archiveOrders.push(o);
+                });
+                archiveOrders.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+                archiveHasMore = (archivePage * pageSize < doneTotal) || (archivePage * pageSize < cancelTotal);
+                if (loadMoreWrap) {
+                    loadMoreWrap.style.display = archiveHasMore ? 'block' : 'none';
+                }
+
+                renderArchiveTable(filterOrderList(archiveOrders));
+            } catch (err) {
+                if (reset) {
+                    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-danger py-4">Arşiv yüklenirken hata oluştu.</td></tr>';
+                }
+                showToast(`Hata: ${err.message}`, 'error');
+            }
+        }
+
+        async function loadMoreArchiveOrders() {
+            const btn = document.getElementById('btnArchiveLoadMore');
+            btn.disabled = true;
+            archivePage++;
+            try {
+                await loadArchiveOrders(false);
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderArchiveTable(orders) {
+            const tbody = document.getElementById('archiveTableBody');
+            document.getElementById('archiveCount').textContent = orders.length;
+
+            const totalRevenue = orders
+                .filter(o => o.status === 'Tamamlandi' && o.totalPrice != null)
+                .reduce((sum, o) => sum + Number(o.totalPrice), 0);
+            document.getElementById('archiveRevenue').textContent =
+                `${totalRevenue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`;
+
+            if (orders.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted py-4">Eşleşen geçmiş sipariş bulunmuyor.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = orders.map(o => {
+                const dateStr = new Date(o.createdAt).toLocaleDateString('tr-TR', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+                const priceStr = o.totalPrice != null
+                    ? `${Number(o.totalPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`
+                    : '–';
+                return `
+                    <tr>
+                        <td class="small text-muted">${dateStr}</td>
+                        <td>
+                            <div class="fw-semibold">${escapeHtml(o.customerName || 'İsimsiz')}</div>
+                            <div class="small text-muted">${escapeHtml(o.customerPhone)}</div>
+                        </td>
+                        <td>
+                            <span class="badge-service badge-${o.serviceType === 'Koltuk' ? 'koltuk' : 'hali'}">
+                                ${SERVICE_LABELS[o.serviceType] || o.serviceType}
+                            </span>
+                            ${o.carpetCount != null ? `<span class="small text-muted ms-1">${o.carpetCount} adet</span>` : ''}
+                        </td>
+                        <td class="small">${o.driverName ? escapeHtml(o.driverName) : '<span class="text-muted">–</span>'}</td>
+                        <td class="small">${o.receiptNumber ? escapeHtml(o.receiptNumber) : '<span class="text-muted">–</span>'}</td>
+                        <td class="fw-semibold">${priceStr}</td>
+                        <td>
+                            <span class="badge-status ${o.status.toLowerCase()}">
+                                <span class="pulse-dot"></span>
+                                ${STATUS_LABELS[o.status] || o.status}
+                            </span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="openEditModalById('${escapeHtml(o.id)}')">
+                                <i class="bi bi-eye"></i> Detay
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
         // ═══════════════════════════════════════════════
         //  Edit Modal
         // ═══════════════════════════════════════════════
 
-        function openEditModal(order) {
-            document.getElementById('editOrderId').value = order.id;
-
-            const nameRow = document.getElementById('editInfoNameRow');
-            if (order.customerName) {
-                document.getElementById('editInfoName').textContent = order.customerName;
-                nameRow.style.display = 'flex';
+        function toggleEditCarpetCount() {
+            const serviceType = document.getElementById('editServiceType').value;
+            const group = document.getElementById('editCarpetCountGroup');
+            const input = document.getElementById('editCarpetCount');
+            const locked = document.getElementById('editServiceType').disabled;
+            if (serviceType === 'Koltuk') {
+                input.value = '';
+                input.disabled = true;
+                group.style.opacity = '0.5';
             } else {
-                nameRow.style.display = 'none';
+                input.disabled = locked;
+                group.style.opacity = '1';
             }
+        }
+
+        function openEditModalById(orderId) {
+            const order = allOrders.find(o => o.id === orderId) || archiveOrders.find(o => o.id === orderId);
+            if (!order) return;
+            openEditModal(order);
+        }
+
+        function openEditModal(order) {
+            const isLocked = order.status === 'Tamamlandi' || order.status === 'IptalEdildi';
+
+            document.getElementById('editOrderId').value = order.id;
             document.getElementById('editCustomerName').value = order.customerName || '';
-
-            document.getElementById('editInfoPhone').textContent = order.customerPhone;
-            document.getElementById('editInfoAddress').textContent = order.customerAddress;
-            document.getElementById('editInfoService').textContent =
-                `${SERVICE_LABELS[order.serviceType] || order.serviceType}${order.carpetCount != null ? ` – ${order.carpetCount} adet` : ''}`;
-
+            document.getElementById('editCustomerPhone').value = order.customerPhone || '';
+            document.getElementById('editCustomerAddress').value = order.customerAddress || '';
+            document.getElementById('editServiceType').value = order.serviceType || 'Hali';
+            document.getElementById('editCarpetCount').value = order.carpetCount ?? '';
             document.getElementById('editReceiptNumber').value = order.receiptNumber || '';
             document.getElementById('editTotalPrice').value = order.totalPrice ?? '';
-            document.getElementById('editDriverId').value = order.driverId || '';
+            document.getElementById('editRequiresPOS').checked = Boolean(order.requiresPOS);
+
+            // Önceki pasif geçici seçeneği temizle ve sipariş pasif sürücüye atanmışsa koru
+            const editDriverSelect = document.getElementById('editDriverId');
+            editDriverSelect.querySelectorAll('option[data-passive="true"]').forEach(opt => opt.remove());
+            if (order.driverId && !Array.from(editDriverSelect.options).some(opt => opt.value === order.driverId)) {
+                const passiveOpt = document.createElement('option');
+                passiveOpt.value = order.driverId;
+                passiveOpt.dataset.passive = 'true';
+                passiveOpt.textContent = `${order.driverName || 'Pasif Sürücü'} (Pasif)`;
+                editDriverSelect.appendChild(passiveOpt);
+            }
+            editDriverSelect.value = order.driverId || '';
             document.getElementById('editStatus').value = order.status;
 
-            // Store the full order for PUT
-            document.getElementById('editOrderId').dataset.order = JSON.stringify(order);
+            // Tamamlanmış veya iptal edilmiş siparişlerde alanları kilitle
+            document.getElementById('editLockedBanner').style.display = isLocked ? 'block' : 'none';
+            const editableIds = [
+                'editCustomerName', 'editCustomerPhone', 'editCustomerAddress',
+                'editServiceType', 'editCarpetCount', 'editReceiptNumber',
+                'editTotalPrice', 'editDriverId', 'editStatus', 'editRequiresPOS'
+            ];
+            editableIds.forEach(id => {
+                document.getElementById(id).disabled = isLocked;
+            });
+            document.getElementById('btnSave').style.display = isLocked ? 'none' : 'inline-flex';
+            toggleEditCarpetCount();
 
             editModalInstance.show();
         }
@@ -1570,26 +2154,40 @@
         async function saveOrder() {
             const btn = document.getElementById('btnSave');
             const orderId = document.getElementById('editOrderId').value;
-            const original = JSON.parse(document.getElementById('editOrderId').dataset.order);
 
             const customerName = document.getElementById('editCustomerName').value.trim() || null;
+            const customerPhone = document.getElementById('editCustomerPhone').value.trim();
+            const customerAddress = document.getElementById('editCustomerAddress').value.trim();
+            const serviceType = document.getElementById('editServiceType').value;
+            const carpetCountVal = document.getElementById('editCarpetCount').value;
+            const carpetCount = (serviceType === 'Hali' && carpetCountVal !== '') ? parseInt(carpetCountVal, 10) : null;
             const receiptNumber = document.getElementById('editReceiptNumber').value.trim() || null;
             const totalPriceVal = document.getElementById('editTotalPrice').value;
             const totalPrice = totalPriceVal !== '' ? parseFloat(totalPriceVal) : null;
             const driverIdVal = document.getElementById('editDriverId').value;
             const driverId = driverIdVal !== '' ? driverIdVal : null;
+            const requiresPOS = document.getElementById('editRequiresPOS').checked;
             const status = document.getElementById('editStatus').value;
+
+            if (!customerPhone || !customerAddress) {
+                showToast('Telefon ve adres zorunludur!', 'error');
+                return;
+            }
+            if (carpetCount !== null && (Number.isNaN(carpetCount) || carpetCount < 1 || carpetCount > 1000)) {
+                showToast('Halı adedi 1 ile 1000 arasında olmalıdır!', 'error');
+                return;
+            }
 
             const payload = {
                 customerName,
-                customerPhone: original.customerPhone,
-                customerAddress: original.customerAddress,
-                serviceType: original.serviceType,
-                carpetCount: original.carpetCount,
+                customerPhone,
+                customerAddress,
+                serviceType,
+                carpetCount,
                 receiptNumber,
                 totalPrice,
                 driverId,
-                requiresPOS: original.requiresPOS,
+                requiresPOS,
                 status
             };
 
@@ -1600,8 +2198,8 @@
                 await updateOrder(orderId, payload);
                 editModalInstance.hide();
                 showToast('Sipariş başarıyla güncellendi!', 'success');
-                await loadOrders();
-                await loadDrivers(); // Update driver order counts
+                await refreshCurrentView();
+                await loadDrivers();
             } catch (error) {
                 showToast(`Hata: ${error.message}`, 'error');
             } finally {
@@ -1610,9 +2208,43 @@
             }
         }
 
+        async function deleteCurrentOrder() {
+            const orderId = document.getElementById('editOrderId').value;
+            if (!orderId) return;
+            if (!confirm('Bu siparişi kalıcı olarak silmek istediğinize emin misiniz?')) return;
+
+            const btn = document.getElementById('btnDeleteOrder');
+            btn.disabled = true;
+            try {
+                await deleteOrderAPI(orderId);
+                editModalInstance.hide();
+                showToast('Sipariş silindi.', 'success');
+                await refreshCurrentView();
+                await loadDrivers();
+            } catch (error) {
+                showToast(`Hata: ${error.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
         // ═══════════════════════════════════════════════
         //  New Order
         // ═══════════════════════════════════════════════
+
+        function toggleNewCarpetCount() {
+            const serviceType = document.getElementById('newServiceType').value;
+            const group = document.getElementById('newCarpetCountGroup');
+            const input = document.getElementById('newCarpetCount');
+            if (serviceType === 'Koltuk') {
+                input.value = '';
+                input.disabled = true;
+                group.style.opacity = '0.5';
+            } else {
+                input.disabled = false;
+                group.style.opacity = '1';
+            }
+        }
 
         async function createOrder() {
             const btn = document.getElementById('btnCreate');
@@ -1621,13 +2253,18 @@
             const address = document.getElementById('newAddress').value.trim();
             const serviceType = document.getElementById('newServiceType').value;
             const carpetCountVal = document.getElementById('newCarpetCount').value;
-            const carpetCount = carpetCountVal !== '' ? parseInt(carpetCountVal, 10) : null;
+            const carpetCount = (serviceType === 'Hali' && carpetCountVal !== '') ? parseInt(carpetCountVal, 10) : null;
             const driverIdVal = document.getElementById('newDriverId').value;
             const driverId = driverIdVal !== '' ? driverIdVal : null;
             const requiresPOS = document.getElementById('newRequiresPOS').checked;
 
             if (!phone || !address) {
                 showToast('Telefon ve adres zorunludur!', 'error');
+                return;
+            }
+
+            if (carpetCount !== null && (Number.isNaN(carpetCount) || carpetCount < 1 || carpetCount > 1000)) {
+                showToast('Halı adedi 1 ile 1000 arasında olmalıdır!', 'error');
                 return;
             }
 
@@ -1657,6 +2294,7 @@
                 document.getElementById('newAddress').value = '';
                 document.getElementById('newServiceType').value = 'Hali';
                 document.getElementById('newCarpetCount').value = '';
+                toggleNewCarpetCount();
                 document.getElementById('newDriverId').value = '';
                 document.getElementById('newRequiresPOS').checked = false;
 
@@ -1671,17 +2309,115 @@
         }
 
         // ═══════════════════════════════════════════════
+        //  Company Settings & Password
+        // ═══════════════════════════════════════════════
+
+        async function openCompanySettings() {
+            try {
+                const res = await fetch('/api/company/profile', { headers: getAuthHeaders() });
+                if (res.status === 401) { logout(); return; }
+                if (!res.ok) throw new Error(await extractApiError(res, 'Profil alınamadı.'));
+                const p = await res.json();
+
+                document.getElementById('profName').value = p.name || '';
+                document.getElementById('profEmail').value = p.email || '';
+                document.getElementById('profPrefix').value = p.codePrefix || '';
+                document.getElementById('profPhone').value = p.phone || '';
+                document.getElementById('profAddress').value = p.address || '';
+                document.getElementById('profWaPhoneId').value = p.whatsAppPhoneNumberId || '';
+                document.getElementById('changePasswordForm').reset();
+
+                companySettingsModalInstance.show();
+            } catch (err) {
+                showToast(`Hata: ${err.message}`, 'error');
+            }
+        }
+
+        async function saveCompanyProfile(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btnSaveProfile');
+            const payload = {
+                name: document.getElementById('profName').value.trim(),
+                phone: document.getElementById('profPhone').value.trim(),
+                address: document.getElementById('profAddress').value.trim() || null,
+                whatsAppPhoneNumberId: document.getElementById('profWaPhoneId').value.trim() || null
+            };
+
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/company/profile', {
+                    method: 'PUT',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify(payload)
+                });
+                if (res.status === 401) { logout(); return; }
+                if (!res.ok) throw new Error(await extractApiError(res, 'Profil güncellenemedi.'));
+                const updated = await res.json();
+
+                document.getElementById('companyNameDisplay').textContent = updated.name;
+                if (currentUser) {
+                    currentUser.name = updated.name;
+                    currentUser.companyName = updated.name;
+                    localStorage.setItem('hali_admin_user', JSON.stringify(currentUser));
+                }
+                showToast('Firma bilgileri güncellendi!', 'success');
+                companySettingsModalInstance.hide();
+            } catch (err) {
+                showToast(`Hata: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        async function changeCompanyPassword(e) {
+            e.preventDefault();
+            const currentPassword = document.getElementById('pwdCurrent').value;
+            const newPassword = document.getElementById('pwdNew').value;
+            const confirmPassword = document.getElementById('pwdConfirm').value;
+
+            if (newPassword !== confirmPassword) {
+                showToast('Yeni şifreler birbiriyle eşleşmiyor!', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btnChangePassword');
+            btn.disabled = true;
+            try {
+                const res = await fetch('/api/company/change-password', {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+                if (res.status === 401) { logout(); return; }
+                if (!res.ok) throw new Error(await extractApiError(res, 'Şifre değiştirilemedi.'));
+                document.getElementById('changePasswordForm').reset();
+                showToast('Şifreniz başarıyla güncellendi!', 'success');
+            } catch (err) {
+                showToast(`Hata: ${err.message}`, 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════
         //  Load & Refresh
         // ═══════════════════════════════════════════════
 
         async function loadOrders() {
             try {
                 allOrders = await fetchOrders();
-                renderColumns(allOrders);
+                renderColumns(filterOrderList(allOrders));
                 updateStats(allOrders);
             } catch (error) {
                 console.error('Siparişler yüklenemedi:', error);
                 showToast(`Yükleme hatası: ${error.message}`, 'error');
+            }
+        }
+
+        async function refreshCurrentView() {
+            await loadOrders();
+            if (currentView === 'archive') {
+                await loadArchiveOrders();
             }
         }
 
@@ -1690,10 +2426,14 @@
         // ═══════════════════════════════════════════════
 
         function escapeHtml(text) {
-            if (!text) return '';
+            if (text == null) return '';
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = String(text);
             return div.innerHTML;
+        }
+
+        function sanitizeTel(phone) {
+            return String(phone || '').replace(/[^0-9+\-\s()]/g, '');
         }
 
         function showToast(message, type = 'success') {
@@ -1703,8 +2443,12 @@
             toastEl.classList.remove('toast-success', 'toast-error');
             toastEl.classList.add(type === 'error' ? 'toast-error' : 'toast-success');
 
-            const icon = type === 'error' ? 'exclamation-triangle-fill' : 'check-circle-fill';
-            msgEl.innerHTML = `<i class="bi bi-${icon} me-2"></i>${message}`;
+            const iconName = type === 'error' ? 'exclamation-triangle-fill' : 'check-circle-fill';
+            msgEl.textContent = '';
+            const iconEl = document.createElement('i');
+            iconEl.className = `bi bi-${iconName} me-2`;
+            msgEl.appendChild(iconEl);
+            msgEl.appendChild(document.createTextNode(String(message)));
 
             const toast = bootstrap.Toast.getOrCreateInstance(toastEl, { delay: 3500 });
             toast.show();
@@ -1715,6 +2459,8 @@
         // ═══════════════════════════════════════════════
 
         document.addEventListener('DOMContentLoaded', () => {
+            if (!isAuthorized) return;
+
             if (currentUser && currentUser.companyName) {
                 const companyEl = document.getElementById('companyNameDisplay');
                 if (companyEl) companyEl.textContent = currentUser.companyName;
@@ -1722,13 +2468,16 @@
 
             editModalInstance = new bootstrap.Modal(document.getElementById('editModal'));
             newOrderModalInstance = new bootstrap.Modal(document.getElementById('newOrderModal'));
-            driversModalInstance = new bootstrap.Modal(document.getElementById('driversModal'));
+            companySettingsModalInstance = new bootstrap.Modal(document.getElementById('companySettingsModal'));
 
             loadDrivers();
             loadOrders();
 
             // Auto-refresh every 30 seconds
-            setInterval(loadOrders, 30000);
+            setInterval(() => {
+                loadOrders();
+                loadDrivers();
+            }, 30000);
         });
     </script>
 </body>

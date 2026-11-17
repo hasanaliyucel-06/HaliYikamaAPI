@@ -21,18 +21,18 @@ public class OrdersController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
     private readonly ICurrentTenantService _tenantService;
-    private readonly IWhatsAppSender _whatsAppSender;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OrdersController> _logger;
 
     public OrdersController(
         ApplicationDbContext context,
         ICurrentTenantService tenantService,
-        IWhatsAppSender whatsAppSender,
+        IServiceScopeFactory scopeFactory,
         ILogger<OrdersController> logger)
     {
         _context = context;
         _tenantService = tenantService;
-        _whatsAppSender = whatsAppSender;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -46,6 +46,7 @@ public class OrdersController : ControllerBase
     /// <param name="status">Sipariş durumu filtresi (opsiyonel)</param>
     /// <param name="driverId">Belirli bir sürücüye atanmış siparişler (opsiyonel)</param>
     /// <param name="unassignedOnly">Sadece henüz sürücü atanmamış siparişleri getir</param>
+    /// <param name="activeOnly">Yalnızca tamamlanmamış ve iptal edilmemiş aktif siparişleri getir</param>
     /// <param name="page">Sayfa numarası (1'den başlar, opsiyonel)</param>
     /// <param name="pageSize">Sayfa başına kayıt sayısı (opsiyonel)</param>
     /// <returns>Sipariş listesi</returns>
@@ -55,6 +56,7 @@ public class OrdersController : ControllerBase
         [FromQuery] OrderStatus? status = null,
         [FromQuery] Guid? driverId = null,
         [FromQuery] bool? unassignedOnly = null,
+        [FromQuery] bool? activeOnly = null,
         [FromQuery] int? page = null,
         [FromQuery] int? pageSize = null)
     {
@@ -66,17 +68,10 @@ public class OrdersController : ControllerBase
             .AsNoTracking()
             .Where(o => o.CompanyId == companyId);
 
-        // Rol kontrolü: Eğer istek atanmış bir sürücüden geliyorsa
+        // Rol kontrolü: Sürücü yalnızca kendisine atanmış siparişleri görebilir
         if (_tenantService.IsDriver && _tenantService.DriverId.HasValue)
         {
-            if (unassignedOnly == true)
-            {
-                query = query.Where(o => o.DriverId == null);
-            }
-            else
-            {
-                query = query.Where(o => o.DriverId == _tenantService.DriverId.Value);
-            }
+            query = query.Where(o => o.DriverId == _tenantService.DriverId.Value);
         }
         else
         {
@@ -91,16 +86,25 @@ public class OrdersController : ControllerBase
             }
         }
 
+        if (activeOnly == true)
+        {
+            query = query.Where(o => o.Status != OrderStatus.Tamamlandi && o.Status != OrderStatus.IptalEdildi);
+        }
+
         if (status.HasValue)
         {
             query = query.Where(o => o.Status == status.Value);
         }
 
+        var totalCount = await query.CountAsync();
+        Response.Headers["X-Total-Count"] = totalCount.ToString();
+
         query = query.OrderByDescending(o => o.CreatedAt);
 
         if (page.HasValue && pageSize.HasValue && page.Value > 0 && pageSize.Value > 0)
         {
-            query = query.Skip((page.Value - 1) * pageSize.Value).Take(pageSize.Value);
+            var clampedSize = Math.Min(pageSize.Value, 100);
+            query = query.Skip((page.Value - 1) * clampedSize).Take(clampedSize);
         }
 
         var orders = await query
@@ -155,8 +159,8 @@ public class OrdersController : ControllerBase
             return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
         }
 
-        // Eğer sürücü ise ve sipariş kendisine ait değilse (ve atanmamış siparişleri incelemiyorsa) kontrol
-        if (_tenantService.IsDriver && order.DriverId != _tenantService.DriverId && order.DriverId != null)
+        // Sürücü yalnızca kendisine atanmış siparişi görüntüleyebilir
+        if (_tenantService.IsDriver && order.DriverId != _tenantService.DriverId)
         {
             return Forbid();
         }
@@ -174,6 +178,7 @@ public class OrdersController : ControllerBase
     /// <param name="dto">Sipariş oluşturma verileri</param>
     /// <returns>Oluşturulan sipariş</returns>
     [HttpPost]
+    [Authorize(Roles = "CompanyAdmin")]
     [ProducesResponseType(typeof(OrderResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<OrderResponseDto>> CreateOrder([FromBody] CreateOrderDto dto)
@@ -185,10 +190,10 @@ public class OrdersController : ControllerBase
         if (dto.DriverId.HasValue)
         {
             var driverExists = await _context.Drivers
-                .AnyAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId);
+                .AnyAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId && d.IsActive);
             if (!driverExists)
             {
-                return BadRequest(new { message = "Seçilen sürücü bu firmaya ait değil veya bulunamadı." });
+                return BadRequest(new { message = "Seçilen sürücü aktif değil, bu firmaya ait değil veya bulunamadı." });
             }
         }
 
@@ -197,12 +202,12 @@ public class OrdersController : ControllerBase
             Id = Guid.NewGuid(),
             CompanyId = companyId,
             DriverId = dto.DriverId,
-            CustomerName = dto.CustomerName,
-            CustomerPhone = dto.CustomerPhone,
-            CustomerAddress = dto.CustomerAddress,
+            CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? null : dto.CustomerName.Trim(),
+            CustomerPhone = dto.CustomerPhone.Trim(),
+            CustomerAddress = dto.CustomerAddress.Trim(),
             ServiceType = dto.ServiceType,
-            CarpetCount = dto.CarpetCount,
-            ReceiptNumber = dto.ReceiptNumber,
+            CarpetCount = dto.ServiceType == ServiceType.Koltuk ? null : dto.CarpetCount,
+            ReceiptNumber = string.IsNullOrWhiteSpace(dto.ReceiptNumber) ? null : dto.ReceiptNumber.Trim(),
             TotalPrice = dto.TotalPrice,
             RequiresPOS = dto.RequiresPOS,
             Status = OrderStatus.YeniTalep,
@@ -257,22 +262,29 @@ public class OrdersController : ControllerBase
             return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
         }
 
+        if (order.Status == OrderStatus.Tamamlandi || order.Status == OrderStatus.IptalEdildi)
+        {
+            return BadRequest(new { message = $"'{order.Status}' durumundaki kilitli sipariş üzerinde değişiklik yapılamaz." });
+        }
+
         if (dto.DriverId.HasValue && dto.DriverId != order.DriverId)
         {
             var driverExists = await _context.Drivers
-                .AnyAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId);
+                .AnyAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId && d.IsActive);
             if (!driverExists)
             {
-                return BadRequest(new { message = "Seçilen sürücü bu firmaya ait değil veya bulunamadı." });
+                return BadRequest(new { message = "Seçilen sürücü aktif değil, bu firmaya ait değil veya bulunamadı." });
             }
         }
 
-        order.CustomerName = dto.CustomerName;
-        order.CustomerPhone = dto.CustomerPhone;
-        order.CustomerAddress = dto.CustomerAddress;
+        var previousStatus = order.Status;
+
+        order.CustomerName = string.IsNullOrWhiteSpace(dto.CustomerName) ? null : dto.CustomerName.Trim();
+        order.CustomerPhone = dto.CustomerPhone.Trim();
+        order.CustomerAddress = dto.CustomerAddress.Trim();
         order.ServiceType = dto.ServiceType;
-        order.CarpetCount = dto.CarpetCount;
-        order.ReceiptNumber = dto.ReceiptNumber;
+        order.CarpetCount = dto.ServiceType == ServiceType.Koltuk ? null : dto.CarpetCount;
+        order.ReceiptNumber = string.IsNullOrWhiteSpace(dto.ReceiptNumber) ? null : dto.ReceiptNumber.Trim();
         order.TotalPrice = dto.TotalPrice;
         order.RequiresPOS = dto.RequiresPOS;
         order.Status = dto.Status;
@@ -285,8 +297,17 @@ public class OrdersController : ControllerBase
         {
             await _context.Entry(order).Reference(o => o.Driver).LoadAsync();
         }
+        else
+        {
+            order.Driver = null;
+        }
 
         _logger.LogInformation("Sipariş güncellendi: {OrderId}", order.Id);
+
+        if (previousStatus != order.Status)
+        {
+            QueueStatusNotification(order.CompanyId, order.Id, order.CustomerPhone, order.Status);
+        }
 
         return Ok(MapToResponseDto(order));
     }
@@ -334,24 +355,18 @@ public class OrdersController : ControllerBase
             return BadRequest(new { message = $"'{order.Status}' durumundan '{dto.Status}' durumuna doğrudan geçiş yapılamaz." });
         }
 
+        var previousStatus = order.Status;
         order.Status = dto.Status;
         order.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         _logger.LogInformation("Sipariş durumu güncellendi: {OrderId} -> {Status}", order.Id, order.Status);
 
-        // Müşteriye WhatsApp durum bildirimi gönder (arka planda, hata ana akışı engellemez)
-        _ = Task.Run(async () =>
+        // Müşteriye WhatsApp durum bildirimi gönder (yeni DI scope içinde güvenli arka plan yürütme)
+        if (previousStatus != order.Status)
         {
-            try
-            {
-                await TrySendStatusNotificationAsync(order, dto.Status);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "WhatsApp durum bildirimi arka planda gönderilirken hata: {OrderId}", order.Id);
-            }
-        });
+            QueueStatusNotification(order.CompanyId, order.Id, order.CustomerPhone, order.Status);
+        }
 
         return Ok(MapToResponseDto(order));
     }
@@ -386,14 +401,19 @@ public class OrdersController : ControllerBase
             return NotFound(new { message = $"Sipariş bulunamadı: {id}" });
         }
 
+        if (order.Status == OrderStatus.Tamamlandi || order.Status == OrderStatus.IptalEdildi)
+        {
+            return BadRequest(new { message = $"'{order.Status}' durumundaki kilitli siparişte sürücü değiştirilemez." });
+        }
+
         if (dto.DriverId.HasValue)
         {
             var driver = await _context.Drivers
-                .FirstOrDefaultAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId);
+                .FirstOrDefaultAsync(d => d.Id == dto.DriverId.Value && d.CompanyId == companyId && d.IsActive);
 
             if (driver is null)
             {
-                return BadRequest(new { message = "Belirtilen sürücü bulunamadı veya bu firmaya ait değil." });
+                return BadRequest(new { message = "Belirtilen sürücü aktif değil, bulunamadı veya bu firmaya ait değil." });
             }
 
             order.DriverId = driver.Id;
@@ -429,11 +449,6 @@ public class OrdersController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteOrder(Guid id)
     {
-        if (_tenantService.IsDriver)
-        {
-            return Forbid();
-        }
-
         var companyId = _tenantService.CompanyId;
         _logger.LogInformation("Sipariş siliniyor: {OrderId} (Firma: {CompanyId})", id, companyId);
 
@@ -471,7 +486,7 @@ public class OrdersController : ControllerBase
         [FromQuery] string? phone = null,
         [FromQuery] string? query = null)
     {
-        var searchTerm = query ?? phone;
+        var searchTerm = (query ?? phone)?.Trim();
         if (string.IsNullOrWhiteSpace(searchTerm))
         {
             return BadRequest(new { message = "Arama terimi boş olamaz." });
@@ -480,11 +495,17 @@ public class OrdersController : ControllerBase
         var companyId = _tenantService.CompanyId;
         _logger.LogInformation("Sipariş arama (Firma: {CompanyId}): {SearchTerm}", companyId, searchTerm);
 
-        var orders = await _context.Orders
+        IQueryable<Order> searchQuery = _context.Orders
             .AsNoTracking()
-            .Include(o => o.Driver)
             .Where(o => o.CompanyId == companyId &&
-                        (o.CustomerPhone.Contains(searchTerm) || (o.CustomerName != null && o.CustomerName.Contains(searchTerm))))
+                        (o.CustomerPhone.Contains(searchTerm) || (o.CustomerName != null && o.CustomerName.Contains(searchTerm))));
+
+        if (_tenantService.IsDriver && _tenantService.DriverId.HasValue)
+        {
+            searchQuery = searchQuery.Where(o => o.DriverId == _tenantService.DriverId.Value);
+        }
+
+        var orders = await searchQuery
             .OrderByDescending(o => o.CreatedAt)
             .Take(50)
             .Select(o => new OrderResponseDto
@@ -533,7 +554,7 @@ public class OrdersController : ControllerBase
         UpdatedAt = order.UpdatedAt
     };
 
-    private async Task TrySendStatusNotificationAsync(Order order, OrderStatus newStatus)
+    private void QueueStatusNotification(Guid companyId, Guid orderId, string customerPhone, OrderStatus newStatus)
     {
         string? message = newStatus switch
         {
@@ -546,15 +567,38 @@ public class OrdersController : ControllerBase
 
         if (message == null) return;
 
-        try
+        var waPhone = FormatPhoneForWhatsApp(customerPhone);
+        var scopeFactory = _scopeFactory;
+
+        _ = Task.Run(async () =>
         {
-            var waPhone = FormatPhoneForWhatsApp(order.CustomerPhone);
-            await _whatsAppSender.SendTextMessageAsync(waPhone, message);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "WhatsApp durum bildirimi gönderilemedi: {Phone}", order.CustomerPhone);
-        }
+            try
+            {
+                using var scope = scopeFactory.CreateScope();
+                var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var phoneNumberId = await db.Companies
+                    .AsNoTracking()
+                    .Where(c => c.Id == companyId)
+                    .Select(c => c.WhatsAppPhoneNumberId)
+                    .FirstOrDefaultAsync();
+
+                var sender = scope.ServiceProvider.GetRequiredService<IWhatsAppSender>();
+                await sender.SendTextMessageAsync(waPhone, message, phoneNumberId);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    using var logScope = scopeFactory.CreateScope();
+                    var logger = logScope.ServiceProvider.GetRequiredService<ILogger<OrdersController>>();
+                    logger.LogWarning(ex, "WhatsApp durum bildirimi gönderilemedi: {OrderId} ({Phone})", orderId, customerPhone);
+                }
+                catch
+                {
+                    // Loglama hatası sessizce geçilir
+                }
+            }
+        });
     }
 
     private static string FormatPhoneForWhatsApp(string phone)

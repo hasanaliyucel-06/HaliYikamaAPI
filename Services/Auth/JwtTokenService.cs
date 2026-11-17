@@ -7,6 +7,16 @@ using HaliYikamaAPI.Models;
 namespace HaliYikamaAPI.Services.Auth;
 
 /// <summary>
+/// Doğrulanmış JWT yapılandırma ayarları (imzalama ve doğrulama için tek kaynak).
+/// </summary>
+public sealed class JwtSettings
+{
+    public string SecretKey { get; init; } = string.Empty;
+    public string Issuer { get; init; } = "HaliYikamaAPI";
+    public string Audience { get; init; } = "HaliYikamaClients";
+}
+
+/// <summary>
 /// Firma ve sürücüler için JWT token üretici servis.
 /// </summary>
 public interface IJwtTokenService
@@ -17,11 +27,11 @@ public interface IJwtTokenService
 
 public class JwtTokenService : IJwtTokenService
 {
-    private readonly IConfiguration _configuration;
+    private readonly JwtSettings _jwtSettings;
 
-    public JwtTokenService(IConfiguration configuration)
+    public JwtTokenService(JwtSettings jwtSettings)
     {
-        _configuration = configuration;
+        _jwtSettings = jwtSettings;
     }
 
     public string GenerateCompanyToken(Company company)
@@ -59,13 +69,12 @@ public class JwtTokenService : IJwtTokenService
 
     private string GenerateToken(IEnumerable<Claim> claims, DateTime expires)
     {
-        var secretKey = _configuration["Jwt:SecretKey"] ?? "HaliYikama_Secure_JWT_Key_2026_Secret_Must_Be_At_Least_256_Bits!";
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"] ?? "HaliYikamaAPI",
-            audience: _configuration["Jwt:Audience"] ?? "HaliYikamaClients",
+            issuer: _jwtSettings.Issuer,
+            audience: _jwtSettings.Audience,
             claims: claims,
             expires: expires,
             signingCredentials: creds

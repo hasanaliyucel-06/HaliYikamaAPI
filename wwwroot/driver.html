@@ -795,17 +795,42 @@
         //  Auth & State
         // ═══════════════════════════════════════════
 
-        const token = localStorage.getItem('hali_token');
-        const currentUser = JSON.parse(localStorage.getItem('hali_user') || 'null');
+        const token = localStorage.getItem('hali_driver_token');
+        let currentUser = null;
+        try {
+            currentUser = JSON.parse(localStorage.getItem('hali_driver_user') || 'null');
+        } catch {
+            localStorage.removeItem('hali_driver_token');
+            localStorage.removeItem('hali_driver_user');
+        }
 
-        if (!token || !currentUser) {
+        const isAuthorized = Boolean(token && currentUser && currentUser.role === 'Driver');
+        if (!isAuthorized) {
             window.location.href = '/login.html?role=driver';
         }
 
         function logoutDriver() {
-            localStorage.removeItem('hali_token');
-            localStorage.removeItem('hali_user');
+            localStorage.removeItem('hali_driver_token');
+            localStorage.removeItem('hali_driver_user');
             window.location.href = '/login.html?role=driver';
+        }
+
+        async function extractApiError(response, fallbackMessage) {
+            const text = await response.text().catch(() => '');
+            if (!text) return fallbackMessage;
+            try {
+                const err = JSON.parse(text);
+                if (err.message) return err.message;
+                if (err.errors && typeof err.errors === 'object') {
+                    const firstKey = Object.keys(err.errors)[0];
+                    const firstVal = firstKey ? err.errors[firstKey] : null;
+                    if (Array.isArray(firstVal) && firstVal.length > 0) return firstVal[0];
+                }
+                if (err.title) return err.title;
+            } catch {
+                // Non-JSON yanıt
+            }
+            return fallbackMessage;
         }
 
         // ═══════════════════════════════════════════
@@ -813,7 +838,7 @@
         // ═══════════════════════════════════════════
 
         async function fetchOrders() {
-            const res = await fetch(API, {
+            const res = await fetch(`${API}?activeOnly=true`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -822,7 +847,7 @@
                 logoutDriver();
                 return [];
             }
-            if (!res.ok) throw new Error(`API ${res.status}`);
+            if (!res.ok) throw new Error(await extractApiError(res, `API ${res.status}`));
             return res.json();
         }
 
@@ -840,8 +865,7 @@
                 throw new Error('Oturum süresi doldu.');
             }
             if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                throw new Error(err.message || `Hata: ${res.status}`);
+                throw new Error(await extractApiError(res, `Hata: ${res.status}`));
             }
             return res.json();
         }
@@ -949,7 +973,7 @@
                         <div class="card-phone-icon"><i class="bi bi-telephone-fill"></i></div>
                         <div>
                             ${order.customerName ? `<div style="font-size:1.05rem;font-weight:800;color:var(--text);margin-bottom:2px;">${escapeHtml(order.customerName)}</div>` : ''}
-                            <a href="tel:${order.customerPhone}" style="${order.customerName ? 'font-size:.92rem;color:var(--text-secondary);font-weight:600;' : ''}">${order.customerPhone}</a>
+                            <a href="tel:${sanitizeTel(order.customerPhone)}" style="${order.customerName ? 'font-size:.92rem;color:var(--text-secondary);font-weight:600;' : ''}">${escapeHtml(order.customerPhone)}</a>
                         </div>
                     </div>
 
@@ -1017,9 +1041,10 @@
             const desc = document.getElementById('confirmDesc');
             const yesBtn = document.getElementById('confirmYes');
 
+            const safePhone = escapeHtml(order.customerPhone);
             if (newStatus === 'Islemde') {
                 title.textContent = 'Teslim Alındı Onayı';
-                desc.innerHTML = `<strong>${order.customerPhone}</strong> numaralı müşteriden sipariş teslim alındı olarak işaretlenecek.`;
+                desc.innerHTML = `<strong>${safePhone}</strong> numaralı müşteriden sipariş teslim alındı olarak işaretlenecek.`;
                 yesBtn.textContent = 'Evet, Teslim Alındı';
                 yesBtn.className = 'btn-confirm-yes purple';
             } else {
@@ -1027,7 +1052,7 @@
                 const priceText = order.totalPrice != null
                     ? `${Number(order.totalPrice).toLocaleString('tr-TR', { minimumFractionDigits: 2 })} ₺`
                     : 'belirtilmemiş';
-                desc.innerHTML = `<strong>${order.customerPhone}</strong> – Tutar: <strong>${priceText}</strong><br>Sipariş tamamlandı olarak işaretlenecek.`;
+                desc.innerHTML = `<strong>${safePhone}</strong> – Tutar: <strong>${escapeHtml(priceText)}</strong><br>Sipariş tamamlandı olarak işaretlenecek.`;
                 yesBtn.textContent = 'Evet, Tamamla';
                 yesBtn.className = 'btn-confirm-yes green';
             }
@@ -1058,17 +1083,22 @@
 
                 hideConfirm();
 
-                // Animate card exit
+                // Animate card exit (reduced-motion için fallback timer ile güvenli)
                 if (cardEl) {
                     cardEl.classList.remove('card-enter');
                     cardEl.classList.add('card-exit');
 
-                    cardEl.addEventListener('animationend', () => {
-                        // Remove from local state
+                    let finished = false;
+                    const finishRemoval = () => {
+                        if (finished) return;
+                        finished = true;
                         orders = orders.filter(o => o.id !== orderId);
                         updateBadges();
                         renderList();
-                    }, { once: true });
+                    };
+
+                    cardEl.addEventListener('animationend', finishRemoval, { once: true });
+                    setTimeout(finishRemoval, 450);
                 } else {
                     orders = orders.filter(o => o.id !== orderId);
                     updateBadges();
@@ -1117,17 +1147,26 @@
         // ═══════════════════════════════════════════
 
         function escapeHtml(text) {
+            if (text == null) return '';
             const d = document.createElement('div');
-            d.textContent = text;
+            d.textContent = String(text);
             return d.innerHTML;
+        }
+
+        function sanitizeTel(phone) {
+            return String(phone || '').replace(/[^0-9+\-\s()]/g, '');
         }
 
         let toastTimer = null;
         function showToast(message, type = 'success') {
             const el = document.getElementById('toastEl');
             el.className = `toast-msg ${type}`;
-            const icon = type === 'error' ? 'exclamation-triangle-fill' : 'check-circle-fill';
-            el.innerHTML = `<i class="bi bi-${icon}"></i>${message}`;
+            const iconName = type === 'error' ? 'exclamation-triangle-fill' : 'check-circle-fill';
+            el.textContent = '';
+            const iconEl = document.createElement('i');
+            iconEl.className = `bi bi-${iconName}`;
+            el.appendChild(iconEl);
+            el.appendChild(document.createTextNode(String(message)));
 
             clearTimeout(toastTimer);
             requestAnimationFrame(() => {
@@ -1141,6 +1180,8 @@
         // ═══════════════════════════════════════════
 
         document.addEventListener('DOMContentLoaded', () => {
+            if (!isAuthorized) return;
+
             if (currentUser) {
                 if (currentUser.name) document.getElementById('driverNameDisplay').textContent = currentUser.name;
                 if (currentUser.companyName) document.getElementById('companyNameDisplay').textContent = currentUser.companyName;

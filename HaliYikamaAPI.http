@@ -1,26 +1,54 @@
 @host = http://localhost:5194
+@token = REPLACE_WITH_JWT_FROM_LOGIN
 
 ### Sağlık kontrolü
 GET {{host}}/health
 Accept: application/json
 
-### Tüm siparişleri listele
-GET {{host}}/api/orders
-Accept: application/json
-
-### Duruma göre filtrele
-GET {{host}}/api/orders?status=YeniTalep
-Accept: application/json
-
-### Telefon ile arama
-GET {{host}}/api/orders/search?phone=0555
-Accept: application/json
-
-### Yeni sipariş oluştur
-POST {{host}}/api/orders
+### 1) Firma Girişi (Dönen token değerini yukarıdaki @token alanına yapıştırın)
+POST {{host}}/api/auth/company/login
 Content-Type: application/json
 
 {
+  "email": "deniz@haliyikama.com",
+  "password": "Deniz123!"
+}
+
+### 2) Sürücü Hızlı Kod Girişi
+POST {{host}}/api/auth/driver/login
+Content-Type: application/json
+
+{
+  "accessCode": "DNZ-101"
+}
+
+### Mevcut oturum bilgisi
+GET {{host}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Firma profili
+GET {{host}}/api/company/profile
+Authorization: Bearer {{token}}
+
+### Aktif siparişleri listele
+GET {{host}}/api/orders?activeOnly=true
+Authorization: Bearer {{token}}
+
+### Duruma göre filtrele (sayfalı)
+GET {{host}}/api/orders?status=Tamamlandi&page=1&pageSize=20
+Authorization: Bearer {{token}}
+
+### Telefon veya ad ile arama
+GET {{host}}/api/orders/search?query=0555
+Authorization: Bearer {{token}}
+
+### Yeni sipariş oluştur
+POST {{host}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerName": "Örnek Müşteri",
   "customerPhone": "05551234567",
   "customerAddress": "Atatürk Mah. Cumhuriyet Cad. No:1 Merkez",
   "serviceType": "Hali",
@@ -30,10 +58,13 @@ Content-Type: application/json
 
 ### Sipariş durumu güncelle (ID'yi değiştirin)
 PATCH {{host}}/api/orders/YOUR-ORDER-GUID-HERE/status
+Authorization: Bearer {{token}}
 Content-Type: application/json
 
 {
   "status": "Alinacak"
 }
 
-###
+### Sürücüleri listele
+GET {{host}}/api/drivers
+Authorization: Bearer {{token}}

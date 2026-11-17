@@ -33,12 +33,24 @@ public static class PasswordHasher
     /// </summary>
     public static bool VerifyPassword(string password, string storedHash)
     {
+        if (string.IsNullOrWhiteSpace(storedHash))
+            return false;
+
         var parts = storedHash.Split(':');
         if (parts.Length != 2)
             return false;
 
-        var salt = Convert.FromBase64String(parts[0]);
-        var expectedHash = Convert.FromBase64String(parts[1]);
+        byte[] salt;
+        byte[] expectedHash;
+        try
+        {
+            salt = Convert.FromBase64String(parts[0]);
+            expectedHash = Convert.FromBase64String(parts[1]);
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
 
         var actualHash = Rfc2898DeriveBytes.Pbkdf2(
             password,

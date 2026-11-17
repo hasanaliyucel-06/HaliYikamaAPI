@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using HaliYikamaAPI.Models;
+using HaliYikamaAPI.Services.Auth;
 
 namespace HaliYikamaAPI.Data;
 
@@ -11,9 +12,15 @@ public class ApplicationDbContext : DbContext
     public static readonly Guid DefaultCompanyId = Guid.Parse("11111111-1111-1111-1111-111111111111");
     public static readonly Guid DefaultDriverId = Guid.Parse("22222222-2222-2222-2222-222222222222");
 
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
+    private readonly ICurrentTenantService? _tenantService;
+    private Guid CurrentTenantId => _tenantService?.CompanyId ?? Guid.Empty;
+
+    public ApplicationDbContext(
+        DbContextOptions<ApplicationDbContext> options,
+        ICurrentTenantService? tenantService = null)
         : base(options)
     {
+        _tenantService = tenantService;
     }
 
     /// <summary>İşletmeler tablosu</summary>
@@ -25,6 +32,9 @@ public class ApplicationDbContext : DbContext
     /// <summary>Siparişler tablosu</summary>
     public DbSet<Order> Orders => Set<Order>();
 
+    /// <summary>Kalıcı WhatsApp konuşma durumları tablosu</summary>
+    public DbSet<WhatsAppConversation> WhatsAppConversations => Set<WhatsAppConversation>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -34,6 +44,8 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.CodePrefix).IsUnique();
+            entity.HasIndex(e => e.WhatsAppPhoneNumberId);
 
             entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Email).IsRequired().HasMaxLength(100);
@@ -41,6 +53,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Phone).IsRequired().HasMaxLength(20);
             entity.Property(e => e.Address).HasMaxLength(250);
             entity.Property(e => e.CodePrefix).IsRequired().HasMaxLength(10);
+            entity.Property(e => e.WhatsAppPhoneNumberId).HasMaxLength(50);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
 
             entity.HasMany(e => e.Drivers)
@@ -85,6 +98,9 @@ public class ApplicationDbContext : DbContext
                 .WithOne(o => o.Driver)
                 .HasForeignKey(o => o.DriverId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // Multi-tenant Global Query Filter
+            entity.HasQueryFilter(e => CurrentTenantId == Guid.Empty || e.CompanyId == CurrentTenantId);
 
             // Default seed driver (Hızlı kod: DNZ-101)
             entity.HasData(new Driver
@@ -149,6 +165,22 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.CustomerPhone);
             entity.HasIndex(e => e.CreatedAt);
+
+            // Multi-tenant Global Query Filter
+            entity.HasQueryFilter(e => CurrentTenantId == Guid.Empty || e.CompanyId == CurrentTenantId);
+        });
+
+        // WhatsAppConversation
+        modelBuilder.Entity<WhatsAppConversation>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.CompanyId, e.PhoneNumber }).IsUnique();
+            entity.HasIndex(e => e.LastActivityAt);
+
+            entity.Property(e => e.PhoneNumber).IsRequired().HasMaxLength(30);
+            entity.Property(e => e.CustomerName).HasMaxLength(100);
+            entity.Property(e => e.Step).IsRequired().HasConversion<string>().HasMaxLength(30);
+            entity.Property(e => e.ServiceType).HasConversion<string>().HasMaxLength(20);
         });
     }
 }

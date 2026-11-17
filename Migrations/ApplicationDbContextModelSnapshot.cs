@@ -65,10 +65,19 @@ namespace HaliYikamaAPI.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 
+                    b.Property<string>("WhatsAppPhoneNumberId")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("CodePrefix")
+                        .IsUnique();
 
                     b.HasIndex("Email")
                         .IsUnique();
+
+                    b.HasIndex("WhatsAppPhoneNumberId");
 
                     b.ToTable("Companies");
 
@@ -216,6 +225,52 @@ namespace HaliYikamaAPI.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("Orders");
+                });
+
+            modelBuilder.Entity("HaliYikamaAPI.Models.WhatsAppConversation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("CarpetCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CompanyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("LastActivityAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ServiceType")
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Step")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LastActivityAt");
+
+                    b.HasIndex("CompanyId", "PhoneNumber")
+                        .IsUnique();
+
+                    b.ToTable("WhatsAppConversations");
                 });
 
             modelBuilder.Entity("HaliYikamaAPI.Models.Driver", b =>

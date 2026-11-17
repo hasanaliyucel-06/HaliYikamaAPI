@@ -89,13 +89,31 @@ public class WhatsAppWebhookController : ControllerBase
     /// X-Hub-Signature-256 doğrulaması yapar, Meta'ya anında 200 döner.
     /// </summary>
     [HttpPost]
+    [RequestSizeLimit(262_144)] // Maksimum 256 KB webhook gövdesi
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> ReceiveMessage()
     {
-        // ── 1) Ham gövdeyi oku (imza doğrulaması için) ──
+        const int maxBodyBytes = 262_144;
+        if (Request.ContentLength is > maxBodyBytes)
+        {
+            _logger.LogWarning("Webhook gövdesi boyut sınırını aştı: {Length}", Request.ContentLength);
+            return StatusCode(StatusCodes.Status413PayloadTooLarge);
+        }
+
+        // ── 1) Ham gövdeyi oku (imza doğrulaması için, boyut sınırlı) ──
         Request.EnableBuffering();
         using var memStream = new MemoryStream();
-        await Request.Body.CopyToAsync(memStream);
+        var buffer = new byte[8192];
+        int bytesRead;
+        while ((bytesRead = await Request.Body.ReadAsync(buffer)) > 0)
+        {
+            if (memStream.Length + bytesRead > maxBodyBytes)
+            {
+                _logger.LogWarning("Webhook gövdesi akış sırasında boyut sınırını aştı");
+                return StatusCode(StatusCodes.Status413PayloadTooLarge);
+            }
+            memStream.Write(buffer, 0, bytesRead);
+        }
         var bodyBytes = memStream.ToArray();
         Request.Body.Position = 0;
 

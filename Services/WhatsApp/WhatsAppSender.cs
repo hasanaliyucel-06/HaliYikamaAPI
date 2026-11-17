@@ -12,7 +12,7 @@ namespace HaliYikamaAPI.Services.WhatsApp;
 public interface IWhatsAppSender
 {
     /// <summary>Belirtilen numaraya metin mesajı gönderir.</summary>
-    Task SendTextMessageAsync(string recipientPhone, string message);
+    Task SendTextMessageAsync(string recipientPhone, string message, string? phoneNumberIdOverride = null);
 }
 
 public class WhatsAppSender : IWhatsAppSender
@@ -31,9 +31,13 @@ public class WhatsAppSender : IWhatsAppSender
         _logger = logger;
     }
 
-    public async Task SendTextMessageAsync(string recipientPhone, string message)
+    public async Task SendTextMessageAsync(string recipientPhone, string message, string? phoneNumberIdOverride = null)
     {
-        var url = $"https://graph.facebook.com/{_settings.ApiVersion}/{_settings.PhoneNumberId}/messages";
+        var phoneNumberId = !string.IsNullOrWhiteSpace(phoneNumberIdOverride)
+            ? phoneNumberIdOverride.Trim()
+            : _settings.PhoneNumberId;
+
+        var url = $"https://graph.facebook.com/{_settings.ApiVersion}/{phoneNumberId}/messages";
 
         var payload = new SendMessageRequest
         {
@@ -45,10 +49,10 @@ public class WhatsAppSender : IWhatsAppSender
         };
 
         var json = JsonSerializer.Serialize(payload);
-        var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
+        using var httpContent = new StringContent(json, Encoding.UTF8, "application/json");
 
-        // Her istekte yeni HttpRequestMessage kullan (thread-safe)
-        var request = new HttpRequestMessage(HttpMethod.Post, url)
+        // Her istekte yeni HttpRequestMessage kullan (thread-safe) ve düzgün dispose et
+        using var request = new HttpRequestMessage(HttpMethod.Post, url)
         {
             Content = httpContent
         };
@@ -57,7 +61,7 @@ public class WhatsAppSender : IWhatsAppSender
 
         try
         {
-            var response = await _httpClient.SendAsync(request);
+            using var response = await _httpClient.SendAsync(request);
             var responseBody = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)

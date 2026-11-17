@@ -1,5 +1,4 @@
 using System.Security.Claims;
-using HaliYikamaAPI.Data;
 
 namespace HaliYikamaAPI.Services.Auth;
 

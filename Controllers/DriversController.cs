@@ -108,51 +108,75 @@ public class DriversController : ControllerBase
         if (company == null)
             return BadRequest(new { message = "Geçersiz firma." });
 
-        string accessCode;
-        if (!string.IsNullOrWhiteSpace(dto.AccessCode))
+        var isCustomCode = !string.IsNullOrWhiteSpace(dto.AccessCode);
+        Driver? createdDriver = null;
+
+        for (int attempt = 0; attempt < (isCustomCode ? 1 : 3); attempt++)
         {
-            accessCode = dto.AccessCode.Trim().ToUpperInvariant();
-            var exists = await _context.Drivers.AnyAsync(d => d.AccessCode.ToUpper() == accessCode);
-            if (exists)
-                return BadRequest(new { message = $"'{accessCode}' erişim kodu zaten başka bir sürücü tarafından kullanılıyor." });
+            string accessCode;
+            if (isCustomCode)
+            {
+                accessCode = dto.AccessCode!.Trim().ToUpperInvariant();
+                var exists = await _context.Drivers.IgnoreQueryFilters().AnyAsync(d => d.AccessCode == accessCode);
+                if (exists)
+                    return BadRequest(new { message = $"'{accessCode}' erişim kodu zaten başka bir sürücü tarafından kullanılıyor." });
+            }
+            else
+            {
+                // Otomatik kod üret: Örn: DNZ-101, DNZ-102
+                accessCode = await GenerateUniqueAccessCodeAsync(company.CodePrefix);
+            }
+
+            var driver = new Driver
+            {
+                Id = Guid.NewGuid(),
+                CompanyId = companyId,
+                FullName = dto.FullName.Trim(),
+                Phone = dto.Phone.Trim(),
+                AccessCode = accessCode,
+                VehiclePlate = dto.VehiclePlate?.Trim(),
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Drivers.Add(driver);
+            try
+            {
+                await _context.SaveChangesAsync();
+                createdDriver = driver;
+                break;
+            }
+            catch (DbUpdateException)
+            {
+                _context.Entry(driver).State = EntityState.Detached;
+                if (isCustomCode)
+                {
+                    return BadRequest(new { message = $"'{accessCode}' erişim kodu zaten başka bir sürücü tarafından kullanılıyor." });
+                }
+            }
         }
-        else
+
+        if (createdDriver == null)
         {
-            // Otomatik kod üret: Örn: DNZ-101, DNZ-102
-            accessCode = await GenerateUniqueAccessCodeAsync(company.CodePrefix);
+            return Conflict(new { message = "Benzersiz erişim kodu üretilemedi. Lütfen tekrar deneyin." });
         }
 
-        var driver = new Driver
-        {
-            Id = Guid.NewGuid(),
-            CompanyId = companyId,
-            FullName = dto.FullName.Trim(),
-            Phone = dto.Phone.Trim(),
-            AccessCode = accessCode,
-            VehiclePlate = dto.VehiclePlate?.Trim(),
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.Drivers.Add(driver);
-        await _context.SaveChangesAsync();
-
-        _logger.LogInformation("Yeni sürücü oluşturuldu: {Name} (Kod: {Code})", driver.FullName, driver.AccessCode);
+        _logger.LogInformation("Yeni sürücü oluşturuldu: {Name} (Kod: {Code})", createdDriver.FullName, createdDriver.AccessCode);
 
         var response = new DriverResponseDto
         {
-            Id = driver.Id,
-            CompanyId = driver.CompanyId,
-            FullName = driver.FullName,
-            Phone = driver.Phone,
-            AccessCode = driver.AccessCode,
-            VehiclePlate = driver.VehiclePlate,
-            IsActive = driver.IsActive,
+            Id = createdDriver.Id,
+            CompanyId = createdDriver.CompanyId,
+            FullName = createdDriver.FullName,
+            Phone = createdDriver.Phone,
+            AccessCode = createdDriver.AccessCode,
+            VehiclePlate = createdDriver.VehiclePlate,
+            IsActive = createdDriver.IsActive,
             ActiveOrderCount = 0,
-            CreatedAt = driver.CreatedAt
+            CreatedAt = createdDriver.CreatedAt
         };
 
-        return CreatedAtAction(nameof(GetDriver), new { id = driver.Id }, response);
+        return CreatedAtAction(nameof(GetDriver), new { id = createdDriver.Id }, response);
     }
 
     /// <summary>
@@ -214,6 +238,7 @@ public class DriversController : ControllerBase
     private async Task<string> GenerateUniqueAccessCodeAsync(string prefix)
     {
         var existingCodes = await _context.Drivers
+            .IgnoreQueryFilters()
             .AsNoTracking()
             .Where(d => d.AccessCode.StartsWith(prefix + "-"))
             .Select(d => d.AccessCode)
@@ -229,6 +254,16 @@ public class DriversController : ControllerBase
                 return code;
             }
         }
-        return $"{prefix}-{Random.Shared.Next(1000, 9999)}";
+
+        for (int attempt = 0; attempt < 50; attempt++)
+        {
+            var fallback = $"{prefix}-{Random.Shared.Next(10000, 999999)}";
+            if (!codeSet.Contains(fallback))
+            {
+                return fallback;
+            }
+        }
+
+        return $"{prefix}-{Guid.NewGuid().ToString("N")[..6].ToUpperInvariant()}";
     }
 }

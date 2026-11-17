@@ -22,23 +22,34 @@ public interface IWebhookSignatureValidator
 public class WebhookSignatureValidator : IWebhookSignatureValidator
 {
     private readonly WhatsAppSettings _settings;
+    private readonly IHostEnvironment _environment;
     private readonly ILogger<WebhookSignatureValidator> _logger;
 
     public WebhookSignatureValidator(
         IOptions<WhatsAppSettings> settings,
+        IHostEnvironment environment,
         ILogger<WebhookSignatureValidator> logger)
     {
         _settings = settings.Value;
+        _environment = environment;
         _logger = logger;
     }
 
     public bool IsValid(byte[] requestBody, string? signatureHeader)
     {
-        // AppSecret boşsa doğrulamayı atla (geliştirme ortamı)
-        if (string.IsNullOrEmpty(_settings.AppSecret))
+        var isUnconfigured = string.IsNullOrWhiteSpace(_settings.AppSecret) ||
+                             _settings.AppSecret == "REPLACE_WITH_ENV_VAR_OR_USER_SECRET";
+
+        if (isUnconfigured)
         {
-            _logger.LogWarning("AppSecret yapılandırılmamış — imza doğrulaması atlanıyor!");
-            return true;
+            if (_environment.IsDevelopment())
+            {
+                _logger.LogWarning("AppSecret yapılandırılmamış (Development) — imza doğrulaması atlanıyor!");
+                return true;
+            }
+
+            _logger.LogError("AppSecret production ortamında yapılandırılmamış — webhook isteği reddedildi!");
+            return false;
         }
 
         if (string.IsNullOrEmpty(signatureHeader))

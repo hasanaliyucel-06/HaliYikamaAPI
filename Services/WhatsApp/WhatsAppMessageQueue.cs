@@ -107,19 +107,20 @@ public class WhatsAppBackgroundWorker : BackgroundService
 
                 var contacts = change.Value.Contacts;
                 var messages = change.Value.Messages;
+                var phoneNumberId = change.Value.Metadata?.PhoneNumberId;
                 if (messages is null || messages.Count == 0)
                     continue;
 
                 foreach (var message in messages)
                 {
                     var senderName = contacts?.FirstOrDefault(c => c.WaId == message.From)?.Profile?.Name;
-                    await ProcessSingleMessageAsync(message, senderName);
+                    await ProcessSingleMessageAsync(message, senderName, phoneNumberId);
                 }
             }
         }
     }
 
-    private async Task ProcessSingleMessageAsync(WebhookMessage message, string? senderName = null)
+    private async Task ProcessSingleMessageAsync(WebhookMessage message, string? senderName = null, string? phoneNumberId = null)
     {
         // ── Tekrar kontrolü (idempotency) — FIFO cache ──
         if (!_processedMessageIds.TryAdd(message.Id, DateTime.UtcNow))
@@ -128,7 +129,7 @@ public class WhatsAppBackgroundWorker : BackgroundService
             return;
         }
 
-        // Eski kayıtları periyodik temizle (MaxCacheSize aşıldığında)
+        // Eski kayıtları periyodik temizle (MaxCacheSize aşıldığında bellek sınırını koru)
         if (_processedMessageIds.Count > MaxCacheSize &&
             Interlocked.CompareExchange(ref _cleanupRunning, 1, 0) == 0)
         {
@@ -141,6 +142,19 @@ public class WhatsAppBackgroundWorker : BackgroundService
                     .ToList();
                 foreach (var key in oldKeys)
                     _processedMessageIds.TryRemove(key, out _);
+
+                // Yoğun trafikte 60 dk dolmadan sınır aşılırsa en eski kayıtları at
+                if (_processedMessageIds.Count > MaxCacheSize)
+                {
+                    var excessCount = _processedMessageIds.Count - (MaxCacheSize / 2);
+                    var oldestKeys = _processedMessageIds
+                        .OrderBy(kv => kv.Value)
+                        .Take(excessCount)
+                        .Select(kv => kv.Key)
+                        .ToList();
+                    foreach (var key in oldestKeys)
+                        _processedMessageIds.TryRemove(key, out _);
+                }
             }
             finally
             {
@@ -170,8 +184,8 @@ public class WhatsAppBackgroundWorker : BackgroundService
 
         try
         {
-            var response = await _stateMachine.ProcessMessageAsync(senderPhone, messageText, senderName);
-            await _sender.SendTextMessageAsync(senderPhone, response);
+            var response = await _stateMachine.ProcessMessageAsync(senderPhone, messageText, senderName, phoneNumberId);
+            await _sender.SendTextMessageAsync(senderPhone, response, phoneNumberId);
         }
         catch (Exception ex)
         {
@@ -180,7 +194,7 @@ public class WhatsAppBackgroundWorker : BackgroundService
             try
             {
                 await _sender.SendTextMessageAsync(senderPhone,
-                    "⚠️ Bir hata oluştu. Lütfen tekrar deneyin.");
+                    "⚠️ Bir hata oluştu. Lütfen tekrar deneyin.", phoneNumberId);
             }
             catch
             {

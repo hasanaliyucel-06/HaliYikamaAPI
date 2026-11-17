@@ -41,6 +41,10 @@ public class Company
     [StringLength(10)]
     public string CodePrefix { get; set; } = "DNZ";
 
+    /// <summary>Meta WhatsApp Business Phone Number ID (çoklu firma yönlendirmesi için opsiyonel)</summary>
+    [StringLength(50)]
+    public string? WhatsAppPhoneNumberId { get; set; }
+
     /// <summary>Firma aktif mi?</summary>
     public bool IsActive { get; set; } = true;
 

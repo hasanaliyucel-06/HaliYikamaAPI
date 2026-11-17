@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using HaliYikamaAPI.Data;
 using HaliYikamaAPI.DTOs;
@@ -38,70 +39,105 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("company/register")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<AuthResponseDto>> CompanyRegister([FromBody] CompanyRegisterDto dto)
     {
         var email = dto.Email.Trim().ToLowerInvariant();
 
-        // 1. E-posta kontrolü
-        var emailExists = await _context.Companies.AnyAsync(c => c.Email.ToLower() == email);
+        // 1. E-posta kontrolü (DB'deki e-postalar normalize saklanır, index kullanılır)
+        var emailExists = await _context.Companies.AnyAsync(c => c.Email == email);
         if (emailExists)
         {
             return BadRequest(new { message = "Bu e-posta adresi ile kayıtlı bir firma zaten mevcut." });
         }
 
-        // 2. Kod öneki belirleme
-        string codePrefix;
+        // 2. Kod öneki tabanını belirle (ASCII normalize — Türkçe karakter sorunu önlenir)
+        string basePrefix;
         if (!string.IsNullOrWhiteSpace(dto.CodePrefix))
         {
-            codePrefix = dto.CodePrefix.Trim().ToUpperInvariant();
+            basePrefix = NormalizeAsciiPrefix(dto.CodePrefix);
+            if (basePrefix.Length < 2)
+            {
+                return BadRequest(new { message = "Firma ön eki en az 2 İngilizce harf veya rakam içermelidir." });
+            }
+            if (basePrefix.Length > 5)
+            {
+                basePrefix = basePrefix[..5];
+            }
         }
         else
         {
-            // Firma adından 3 karakterlik otomatik önek üret
-            var cleanName = new string(dto.Name.Where(char.IsLetterOrDigit).ToArray()).ToUpperInvariant();
-            codePrefix = cleanName.Length >= 3 ? cleanName[..3] : (cleanName.PadRight(3, 'X'));
+            var cleanName = NormalizeAsciiPrefix(dto.Name);
+            basePrefix = cleanName.Length >= 3 ? cleanName[..3] : cleanName.PadRight(3, 'X');
         }
 
-        // Önek çakışma kontrolü ve otomatik düzeltme
-        var basePrefix = codePrefix;
-        int counter = 1;
-        while (await _context.Companies.AnyAsync(c => c.CodePrefix == codePrefix))
+        // 3. Firma nesnesi oluşturma (eşzamanlı CodePrefix çakışmalarına karşı retry)
+        Company? createdCompany = null;
+        var passwordHash = PasswordHasher.HashPassword(dto.Password);
+
+        for (int attempt = 0; attempt < 3; attempt++)
         {
-            codePrefix = $"{basePrefix[..Math.Min(2, basePrefix.Length)]}{counter++}";
+            var codePrefix = basePrefix;
+            int counter = 1;
+            while (await _context.Companies.AnyAsync(c => c.CodePrefix == codePrefix))
+            {
+                var suffix = counter++.ToString();
+                var maxBaseLen = Math.Max(1, 10 - suffix.Length);
+                codePrefix = $"{basePrefix[..Math.Min(Math.Min(3, maxBaseLen), basePrefix.Length)]}{suffix}";
+            }
+
+            var company = new Company
+            {
+                Id = Guid.NewGuid(),
+                Name = dto.Name.Trim(),
+                Email = email,
+                PasswordHash = passwordHash,
+                Phone = dto.Phone.Trim(),
+                Address = string.IsNullOrWhiteSpace(dto.Address) ? null : dto.Address.Trim(),
+                CodePrefix = codePrefix,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Companies.Add(company);
+            try
+            {
+                await _context.SaveChangesAsync();
+                createdCompany = company;
+                break;
+            }
+            catch (DbUpdateException)
+            {
+                _context.Entry(company).State = EntityState.Detached;
+
+                // E-posta mı çakıştı yoksa CodePrefix mi ayır
+                if (await _context.Companies.AnyAsync(c => c.Email == email))
+                {
+                    return BadRequest(new { message = "Bu e-posta adresi ile kayıtlı bir firma zaten mevcut." });
+                }
+            }
         }
 
-        // 3. Firma nesnesi oluşturma
-        var company = new Company
+        if (createdCompany == null)
         {
-            Id = Guid.NewGuid(),
-            Name = dto.Name.Trim(),
-            Email = email,
-            PasswordHash = PasswordHasher.HashPassword(dto.Password),
-            Phone = dto.Phone.Trim(),
-            Address = dto.Address?.Trim(),
-            CodePrefix = codePrefix,
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        _context.Companies.Add(company);
-        await _context.SaveChangesAsync();
+            return Conflict(new { message = "Firma kodu üretilirken çakışma oluştu. Lütfen tekrar deneyin." });
+        }
 
         _logger.LogInformation("Yeni firma kaydı tamamlandı: {CompanyName} ({CompanyId}), Önek: {Prefix}",
-            company.Name, company.Id, company.CodePrefix);
+            createdCompany.Name, createdCompany.Id, createdCompany.CodePrefix);
 
-        var token = _jwtService.GenerateCompanyToken(company);
+        var token = _jwtService.GenerateCompanyToken(createdCompany);
 
         return CreatedAtAction(nameof(GetCurrentUserInfo), new AuthResponseDto
         {
             Token = token,
             Role = "CompanyAdmin",
-            Id = company.Id,
-            Name = company.Name,
-            CompanyId = company.Id,
-            CompanyName = company.Name
+            Id = createdCompany.Id,
+            Name = createdCompany.Name,
+            CompanyId = createdCompany.Id,
+            CompanyName = createdCompany.Name
         });
     }
 
@@ -110,6 +146,7 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("company/login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -117,7 +154,7 @@ public class AuthController : ControllerBase
     {
         var email = dto.Email.Trim().ToLowerInvariant();
         var company = await _context.Companies
-            .FirstOrDefaultAsync(c => c.Email.ToLower() == email);
+            .FirstOrDefaultAsync(c => c.Email == email);
 
         if (company == null || !PasswordHasher.VerifyPassword(dto.Password, company.PasswordHash))
         {
@@ -149,6 +186,7 @@ public class AuthController : ControllerBase
     /// </summary>
     [HttpPost("driver/login")]
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [ProducesResponseType(typeof(AuthResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -157,7 +195,7 @@ public class AuthController : ControllerBase
         var code = dto.AccessCode.Trim().ToUpperInvariant();
         var driver = await _context.Drivers
             .Include(d => d.Company)
-            .FirstOrDefaultAsync(d => d.AccessCode.ToUpper() == code);
+            .FirstOrDefaultAsync(d => d.AccessCode == code);
 
         if (driver == null)
         {
@@ -204,9 +242,9 @@ public class AuthController : ControllerBase
         }
 
         var company = await _context.Companies.FindAsync(_tenantService.CompanyId);
-        if (company == null)
+        if (company == null || !company.IsActive)
         {
-            return Unauthorized(new { message = "Firma bulunamadı." });
+            return Unauthorized(new { message = "Firma bulunamadı veya pasif durumda." });
         }
 
         string name = company.Name;
@@ -215,11 +253,13 @@ public class AuthController : ControllerBase
         if (_tenantService.IsDriver && _tenantService.DriverId.HasValue)
         {
             var driver = await _context.Drivers.FindAsync(_tenantService.DriverId.Value);
-            if (driver != null)
+            if (driver == null || !driver.IsActive || driver.CompanyId != company.Id)
             {
-                name = driver.FullName;
-                id = driver.Id;
+                return Unauthorized(new { message = "Sürücü hesabı bulunamadı veya pasif durumda." });
             }
+
+            name = driver.FullName;
+            id = driver.Id;
         }
 
         return Ok(new AuthResponseDto
@@ -230,5 +270,29 @@ public class AuthController : ControllerBase
             CompanyId = company.Id,
             CompanyName = company.Name
         });
+    }
+
+    private static string NormalizeAsciiPrefix(string value)
+    {
+        var sb = new System.Text.StringBuilder(value.Length);
+        foreach (var ch in value.Trim())
+        {
+            var mapped = ch switch
+            {
+                'ç' or 'Ç' => 'C',
+                'ğ' or 'Ğ' => 'G',
+                'ı' or 'I' or 'i' or 'İ' => 'I',
+                'ö' or 'Ö' => 'O',
+                'ş' or 'Ş' => 'S',
+                'ü' or 'Ü' => 'U',
+                _ => char.ToUpperInvariant(ch)
+            };
+
+            if ((mapped >= 'A' && mapped <= 'Z') || (mapped >= '0' && mapped <= '9'))
+            {
+                sb.Append(mapped);
+            }
+        }
+        return sb.ToString();
     }
 }
